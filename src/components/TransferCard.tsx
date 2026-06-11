@@ -8,6 +8,7 @@ import {
   SCOPE_CHAINS,
   SCOPE_ORIGINS,
   SPEND_CAP_USD,
+  tokenLabel,
   type ChainKey,
   type ScopeToken,
 } from "@/lib/chains";
@@ -42,9 +43,18 @@ function eta(seconds: number | null): string {
   return `~${Math.round(seconds / 60)} min`;
 }
 
-function defaultTokenOut(tokenIn: ScopeToken, to: ChainKey): ScopeToken {
-  const dest = CHAIN_TOKENS[to] ?? [];
-  return dest.includes(tokenIn) ? tokenIn : (dest[0] as ScopeToken);
+type Availability = Record<string, Record<string, boolean>> | null;
+
+function avail(a: Availability, chain: ChainKey, tok: ScopeToken): boolean {
+  // Until the live list answers (or if it fails), assume available — the
+  // server re-validates at quote time anyway.
+  return a?.[chain]?.[tok] ?? true;
+}
+
+function defaultTokenOut(tokenIn: ScopeToken, to: ChainKey, a: Availability): ScopeToken {
+  const dest = (CHAIN_TOKENS[to] ?? []) as ScopeToken[];
+  if (dest.includes(tokenIn) && avail(a, to, tokenIn)) return tokenIn;
+  return dest.find((t) => avail(a, to, t)) ?? (dest[0] as ScopeToken);
 }
 
 export function TransferCard({
@@ -70,9 +80,21 @@ export function TransferCard({
   const [executing, setExecuting] = useState(false);
   const [typedAmount, setTypedAmount] = useState("");
   const [recipientAccepted, setRecipientAccepted] = useState(false);
+  const [availability, setAvailability] = useState<Availability>(null);
+
+  // Live token availability (what 1-Click solvers actually carry right now).
+  useEffect(() => {
+    fetch("/api/tokens")
+      .then((r) => r.json())
+      .then((d) => { if (d.availability) setAvailability(d.availability); })
+      .catch(() => {});
+  }, []);
 
   const fromTokens = (CHAIN_TOKENS[fromChain] ?? []) as ScopeToken[];
-  const destChains = SCOPE_CHAINS.filter((c) => c !== fromChain);
+  // Apex Fusion is reached via the bAP3X OFT on Base — hide it for other origins.
+  const destChains = SCOPE_CHAINS.filter(
+    (c) => c !== fromChain && !(c === "ap3x" && fromChain !== "base"),
+  );
   const destTokens = (CHAIN_TOKENS[toChain] ?? []) as ScopeToken[];
   const destNonEvm = CHAINS[toChain].family !== "evm";
   const amountOk = /^\d+(\.\d+)?$/.test(amount) && Number(amount) > 0;
@@ -96,13 +118,15 @@ export function TransferCard({
 
   // Keep tokenOut coherent when chain/token selections change.
   useEffect(() => {
-    setTokenOut(defaultTokenOut(tokenIn, toChain));
-  }, [tokenIn, toChain]);
+    setTokenOut(defaultTokenOut(tokenIn, toChain, availability));
+  }, [tokenIn, toChain, availability]);
   useEffect(() => {
-    if (!fromTokens.includes(tokenIn)) setTokenIn(fromTokens[0]);
-    if (toChain === fromChain) setToChain(destChains[0]);
+    if (!fromTokens.includes(tokenIn) || !avail(availability, fromChain, tokenIn)) {
+      setTokenIn(fromTokens.find((t) => avail(availability, fromChain, t)) ?? fromTokens[0]);
+    }
+    if (!destChains.includes(toChain)) setToChain(destChains[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromChain]);
+  }, [fromChain, availability]);
 
   // AI prompt prefill -> set fields, then auto-quote when complete.
   useEffect(() => {
@@ -224,9 +248,14 @@ export function TransferCard({
             onChange={(e) => { setTokenIn(e.target.value as ScopeToken); setQuote({ k: "idle" }); }}
             aria-label="Token to send"
           >
-            {fromTokens.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
+            {fromTokens.map((t) => {
+              const ok = avail(availability, fromChain, t);
+              return (
+                <option key={t} value={t} disabled={!ok}>
+                  {tokenLabel(fromChain, t)}{ok ? "" : " · soon"}
+                </option>
+              );
+            })}
           </select>
           <input
             className="amt"
@@ -264,9 +293,14 @@ export function TransferCard({
             onChange={(e) => { setTokenOut(e.target.value as ScopeToken); setQuote({ k: "idle" }); }}
             aria-label="Token to receive"
           >
-            {destTokens.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
+            {destTokens.map((t) => {
+              const ok = avail(availability, toChain, t);
+              return (
+                <option key={t} value={t} disabled={!ok}>
+                  {tokenLabel(toChain, t)}{ok ? "" : " · soon"}
+                </option>
+              );
+            })}
           </select>
           <div className="est-line" style={{ flex: 1, justifyContent: "flex-end" }}>
             <span className={`amount ${q ? "" : "dim"}`}>
@@ -369,6 +403,8 @@ export function TransferCard({
           disabled={
             !wallet ||
             !amountOk ||
+            !avail(availability, fromChain, tokenIn) ||
+            !avail(availability, toChain, tokenOut) ||
             (destNonEvm && !recipient.trim()) ||
             quote.k === "loading" ||
             executing ||

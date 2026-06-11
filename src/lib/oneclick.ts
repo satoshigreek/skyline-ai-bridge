@@ -98,8 +98,11 @@ export async function getTokens(): Promise<OneClickToken[]> {
 // Symbol aliases: what users say -> what the token list calls it.
 const SYMBOL_ALIASES: Record<string, string[]> = {
   NEAR: ["wNEAR", "NEAR"],
-  BTC: ["BTC", "cbBTC", "BTCB", "WBTC"],
-  ETH: ["ETH", "WETH"],
+  BTC: ["BTC", "cbBTC", "BTCB"],
+  WBTC: ["WBTC"],
+  ETH: ["ETH"],
+  WETH: ["WETH"],
+  ADA: ["ADA", "cbADA"],
   POL: ["POL", "MATIC"],
 };
 

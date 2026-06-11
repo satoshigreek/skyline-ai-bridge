@@ -154,7 +154,7 @@ export default function Home() {
       <HistoryList wallet={address} />
 
       <p className="footnote">
-        AP3X · USDC · USDT · ADA · ETH · BTC — Base · BNB · Apex Fusion · Cardano
+        AP3X · USDC · USDT · ADA · ETH · WETH · BTC · WBTC — Base · BNB · Apex Fusion · Cardano
         <br />
         The AI only proposes · you sign in your own wallet · failures refund automatically
       </p>

@@ -102,17 +102,39 @@ export const RAIL_A_DECIMALS: Record<RailAToken, number> = {
 export const SCOPE_CHAINS: ChainKey[] = ["base", "bsc", "ap3x", "cardano"];
 // Chains the user can SEND FROM (EVM, signable with the connected wallet).
 export const SCOPE_ORIGINS: ChainKey[] = ["base", "bsc"];
-export const SCOPE_TOKENS = ["AP3X", "USDC", "USDT", "ADA", "ETH", "BTC"] as const;
+export const SCOPE_TOKENS = [
+  "AP3X",
+  "USDC",
+  "USDT",
+  "ADA",
+  "ETH",
+  "WETH",
+  "BTC",
+  "WBTC",
+] as const;
 export type ScopeToken = (typeof SCOPE_TOKENS)[number];
 
-// What's actually tradable per chain (verified against the live 1-Click list
-// + the bAP3X OFT). BTC on Base = cbBTC; AP3X on Base = bAP3X (Rail A).
+// The product's token×chain matrix. Per-chain representations: BTC on Base =
+// cbBTC, ADA on Base = cbADA, ADA on BNB = BEP-20 ADA, AP3X on Base = bAP3X.
+// Whether an entry is QUOTABLE today is decided live against the 1-Click token
+// list (/api/tokens availability) — entries solvers don't carry yet render as
+// "soon" in the UI instead of producing quotes that can't settle.
 export const CHAIN_TOKENS: Record<string, ScopeToken[]> = {
-  base: ["AP3X", "USDC", "ETH", "BTC"],
-  bsc: ["USDC", "USDT"],
+  base: ["AP3X", "USDC", "ETH", "WETH", "BTC", "WBTC", "ADA"],
+  bsc: ["USDC", "USDT", "ADA", "WETH", "WBTC"],
   ap3x: ["AP3X"],
   cardano: ["ADA"],
 };
+
+// How a scope token is labeled on a given chain (wrapped representations).
+export const TOKEN_DISPLAY: Partial<Record<ChainKey, Partial<Record<ScopeToken, string>>>> = {
+  base: { BTC: "cbBTC", ADA: "cbADA" },
+  bsc: { ADA: "ADA (BEP-20)" },
+};
+
+export function tokenLabel(chain: ChainKey, token: ScopeToken): string {
+  return TOKEN_DISPLAY[chain]?.[token] ?? token;
+}
 
 // EVM chain ids for wallet transfers per origin.
 export const EVM_CHAIN_IDS: Partial<Record<ChainKey, number>> = {
