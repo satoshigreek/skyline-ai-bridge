@@ -1,0 +1,100 @@
+{"prompt": "Move 250 USDC from Base to Apex Fusion", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "250", "fromChain": "base", "toChain": "ap3x"}}
+{"prompt": "Bridge 25 AP3X to Apex Fusion", "expect": {"action": "bridge", "tokenIn": "AP3X", "amount": "25", "toChain": "ap3x"}}
+{"prompt": "bridge 12.5 bAP3X to apex", "expect": {"action": "bridge", "tokenIn": "bAP3X", "amount": "12.5", "toChain": "ap3x"}}
+{"prompt": "send my 100 usdc over to apex fusion", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "100", "toChain": "ap3x"}}
+{"prompt": "Transfer 5 AP3X from base to apex fusion", "expect": {"action": "bridge", "tokenIn": "AP3X", "amount": "5", "fromChain": "base", "toChain": "ap3x"}}
+{"prompt": "move 1000 usdc to ap3x", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "1000", "toChain": "ap3x"}}
+{"prompt": "bridge 0.5 bap3x from base to apex fusion", "expect": {"action": "bridge", "tokenIn": "bAP3X", "amount": "0.5", "fromChain": "base", "toChain": "ap3x"}}
+{"prompt": "Move 75 AP3X over to Apex Fusion please", "expect": {"tokenIn": "AP3X", "amount": "75", "toChain": "ap3x"}}
+{"prompt": "shift 200 usdc from base to apex", "expect": {"tokenIn": "USDC", "amount": "200", "fromChain": "base", "toChain": "ap3x"}}
+{"prompt": "I need to move 300 USDC from Base to Apex Fusion", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "300", "fromChain": "base", "toChain": "ap3x", "amountSide": "in"}}
+{"prompt": "please bridge 42 ap3x to apex fusion now", "expect": {"action": "bridge", "tokenIn": "AP3X", "amount": "42", "toChain": "ap3x"}}
+{"prompt": "bridge 9.99 USDC to apex fusion", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "9.99", "toChain": "ap3x"}}
+{"prompt": "move 150 usdc from base to apexfusion", "expect": {"tokenIn": "USDC", "amount": "150", "fromChain": "base", "toChain": "ap3x"}}
+{"prompt": "transfer 33 bAP3X to Apex Fusion", "expect": {"tokenIn": "bAP3X", "amount": "33", "toChain": "ap3x"}}
+{"prompt": "bridge 100 USDC to Apex Fusion from Base", "expect": {"tokenIn": "USDC", "amount": "100", "fromChain": "base", "toChain": "ap3x"}}
+{"prompt": "move 60 ap3x to apex fusion", "expect": {"tokenIn": "AP3X", "amount": "60", "toChain": "ap3x"}}
+{"prompt": "Swap 0.1 ETH on Base for NEAR", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "NEAR", "amount": "0.1", "fromChain": "base", "toChain": "near"}}
+{"prompt": "swap 50 USDC to NEAR", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "NEAR", "amount": "50", "toChain": "near"}}
+{"prompt": "convert 100 usdc into sol", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "SOL", "amount": "100", "toChain": "solana"}}
+{"prompt": "Turn 50 USDC into BTC", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "BTC", "amount": "50", "toChain": "bitcoin"}}
+{"prompt": "swap 0.25 eth on base for wnear", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "NEAR", "amount": "0.25", "fromChain": "base", "toChain": "near"}}
+{"prompt": "exchange 75 usdc for sol", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "SOL", "amount": "75", "toChain": "solana"}}
+{"prompt": "buy NEAR with 100 USDC", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "NEAR", "amount": "100", "toChain": "near"}}
+{"prompt": "buy SOL with 250 USDC", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "SOL", "amount": "250", "toChain": "solana"}}
+{"prompt": "swap 1000 usdc for btc", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "BTC", "amount": "1000", "toChain": "bitcoin"}}
+{"prompt": "convert 0.05 ETH to NEAR", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "NEAR", "amount": "0.05", "toChain": "near"}}
+{"prompt": "swap 500 USDC from Base to NEAR", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "NEAR", "amount": "500", "fromChain": "base", "toChain": "near"}}
+{"prompt": "trade 0.2 ETH for ADA", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "ADA", "amount": "0.2", "toChain": "cardano"}}
+{"prompt": "turn 20 usdc into near", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "NEAR", "amount": "20", "toChain": "near"}}
+{"prompt": "swap 5 eth for near", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "NEAR", "amount": "5", "toChain": "near"}}
+{"prompt": "convert 12 usdc to ada", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "ADA", "amount": "12", "toChain": "cardano"}}
+{"prompt": "swap 800 usdc to solana", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "SOL", "amount": "800", "toChain": "solana"}}
+{"prompt": "swap 7 usdc to bitcoin", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "BTC", "amount": "7", "toChain": "bitcoin"}}
+{"prompt": "convert 9 usdc to btc", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "BTC", "amount": "9", "toChain": "bitcoin"}}
+{"prompt": "swap 0.3 eth to sol", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "SOL", "amount": "0.3", "toChain": "solana"}}
+{"prompt": "sell 120 usdc for near", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "NEAR", "amount": "120", "toChain": "near"}}
+{"prompt": "Transfer 5 ETH to arbitrum", "expect": {"action": "bridge", "tokenIn": "ETH", "amount": "5", "toChain": "arbitrum"}}
+{"prompt": "bridge 0.02 eth to optimism", "expect": {"action": "bridge", "tokenIn": "ETH", "amount": "0.02", "toChain": "optimism"}}
+{"prompt": "move 45 usdc to polygon", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "45", "toChain": "polygon"}}
+{"prompt": "bridge 88 usdc from base to bsc", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "88", "fromChain": "base", "toChain": "bsc"}}
+{"prompt": "send 0.1 eth to avalanche", "expect": {"action": "bridge", "tokenIn": "ETH", "amount": "0.1", "toChain": "avalanche"}}
+{"prompt": "transfer 12 usdc to arbitrum", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "12", "toChain": "arbitrum"}}
+{"prompt": "move 250 usdc from base to near", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "250", "fromChain": "base", "toChain": "near"}}
+{"prompt": "bridge 1.5 eth from base to ethereum", "expect": {"action": "bridge", "tokenIn": "ETH", "amount": "1.5", "fromChain": "base", "toChain": "ethereum"}}
+{"prompt": "move 20 usdc to cardano", "expect": {"tokenIn": "USDC", "amount": "20", "toChain": "cardano"}}
+{"prompt": "bridge 250 usdc to near", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "250", "toChain": "near"}}
+{"prompt": "move 3.5 eth to arbitrum", "expect": {"tokenIn": "ETH", "amount": "3.5", "toChain": "arbitrum"}}
+{"prompt": "bridge 7 usdc from base to avalanche", "expect": {"tokenIn": "USDC", "amount": "7", "fromChain": "base", "toChain": "avalanche"}}
+{"prompt": "move 80 usdc from base to optimism", "expect": {"tokenIn": "USDC", "amount": "80", "fromChain": "base", "toChain": "optimism"}}
+{"prompt": "send 1000 usdc from base to solana", "expect": {"action": "bridge", "tokenIn": "USDC", "amount": "1000", "fromChain": "base", "toChain": "solana"}}
+{"prompt": "Send 50 USDC to alice.near", "expect": {"action": "send", "tokenIn": "USDC", "amount": "50", "toChain": "near", "recipient": "alice.near"}}
+{"prompt": "send 100 usdc to bob.near", "expect": {"action": "send", "tokenIn": "USDC", "amount": "100", "toChain": "near", "recipient": "bob.near"}}
+{"prompt": "pay charlie.near 25 usdc", "expect": {"action": "send", "tokenIn": "USDC", "amount": "25", "toChain": "near", "recipient": "charlie.near"}}
+{"prompt": "send 10 NEAR to alice.near", "expect": {"action": "send", "amount": "10", "toChain": "near", "recipient": "alice.near"}}
+{"prompt": "transfer 75 USDC to dave.near", "expect": {"action": "send", "tokenIn": "USDC", "amount": "75", "toChain": "near", "recipient": "dave.near"}}
+{"prompt": "Send 100 bAP3X to 0x1111111111111111111111111111111111111111 on AP3X", "expect": {"action": "send", "tokenIn": "bAP3X", "amount": "100", "toChain": "ap3x", "recipient": "0x1111111111111111111111111111111111111111"}}
+{"prompt": "send 200 usdc to 0x2222222222222222222222222222222222222222 on arbitrum", "expect": {"action": "send", "tokenIn": "USDC", "amount": "200", "toChain": "arbitrum", "recipient": "0x2222222222222222222222222222222222222222"}}
+{"prompt": "pay eve.near 5 near", "expect": {"action": "send", "amount": "5", "toChain": "near", "recipient": "eve.near"}}
+{"prompt": "send 0.05 eth to frank.near", "expect": {"action": "send", "tokenIn": "ETH", "amount": "0.05", "toChain": "near", "recipient": "frank.near"}}
+{"prompt": "transfer 9 usdc to grace.near", "expect": {"action": "send", "tokenIn": "USDC", "amount": "9", "toChain": "near", "recipient": "grace.near"}}
+{"prompt": "pay hank.near 50 usdc", "expect": {"action": "send", "tokenIn": "USDC", "amount": "50", "toChain": "near", "recipient": "hank.near"}}
+{"prompt": "pay 12 usdc to judy.near", "expect": {"action": "send", "tokenIn": "USDC", "amount": "12", "toChain": "near", "recipient": "judy.near"}}
+{"prompt": "I want to receive 100 USDC on NEAR", "expect": {"clarify": true}}
+{"prompt": "get me exactly 0.01 BTC", "expect": {"clarify": true}}
+{"prompt": "receive 500 usdc on arbitrum", "expect": {"clarify": true}}
+{"prompt": "i want 200 usdc on near", "expect": {"clarify": true}}
+{"prompt": "receive 50 near", "expect": {"clarify": true}}
+{"prompt": "How much would it cost to bridge 100 USDC to Apex Fusion?", "expect": {"action": "quote_only", "tokenIn": "USDC", "amount": "100", "toChain": "ap3x"}}
+{"prompt": "how much to swap 1 eth for near", "expect": {"action": "quote_only", "tokenIn": "ETH", "tokenOut": "NEAR", "amount": "1", "toChain": "near"}}
+{"prompt": "what's the cost of moving 250 usdc to apex fusion", "expect": {"action": "quote_only", "amount": "250", "toChain": "ap3x"}}
+{"prompt": "quote me 500 usdc from base to near", "expect": {"action": "quote_only", "tokenIn": "USDC", "amount": "500", "fromChain": "base", "toChain": "near"}}
+{"prompt": "estimate fees for bridging 50 usdc to solana", "expect": {"action": "quote_only", "tokenIn": "USDC", "amount": "50", "toChain": "solana"}}
+{"prompt": "how much does it cost to send 25 usdc to alice.near", "expect": {"action": "quote_only", "tokenIn": "USDC", "amount": "25", "toChain": "near", "recipient": "alice.near"}}
+{"prompt": "what would it cost to move 75 usdc to apex fusion", "expect": {"action": "quote_only", "tokenIn": "USDC", "amount": "75", "toChain": "ap3x"}}
+{"prompt": "how much for 10 ap3x to apex fusion", "expect": {"action": "quote_only", "tokenIn": "AP3X", "amount": "10", "toChain": "ap3x"}}
+{"prompt": "bridge my usdc", "expect": {"clarify": true}}
+{"prompt": "swap eth", "expect": {"clarify": true}}
+{"prompt": "do the thing", "expect": {"clarify": true}}
+{"prompt": "bridge 50", "expect": {"clarify": true}}
+{"prompt": "send tokens to apex", "expect": {"clarify": true}}
+{"prompt": "swap 2 ETH for USDC", "expect": {"clarify": true}}
+{"prompt": "swap 100 usdc for wbtc", "expect": {"clarify": true}}
+{"prompt": "convert 3 eth into usdt", "expect": {"clarify": true}}
+{"prompt": "send 15 usdc to my friend", "expect": {"clarify": true}}
+{"prompt": "move some eth to near", "expect": {"clarify": true}}
+{"prompt": "bridge usdc to apex fusion", "expect": {"clarify": true}}
+{"prompt": "swap something for btc", "expect": {"clarify": true}}
+{"prompt": "i want to bridge", "expect": {"clarify": true}}
+{"prompt": "transfer funds to arbitrum", "expect": {"clarify": true}}
+{"prompt": "swap my eth to near please", "expect": {"clarify": true}}
+{"prompt": "bridge half my usdc to apex", "expect": {"clarify": true}}
+{"prompt": "swap 1.25 eth for near on base", "expect": {"action": "swap", "tokenIn": "ETH", "tokenOut": "NEAR", "amount": "1.25", "fromChain": "base", "toChain": "near"}}
+{"prompt": "convert 50 usdc to wnear", "expect": {"action": "swap", "tokenIn": "USDC", "tokenOut": "NEAR", "amount": "50", "toChain": "near"}}
+{"prompt": "bridge 5 usdc to bitcoin", "expect": {"tokenIn": "USDC", "amount": "5", "toChain": "bitcoin"}}
+{"prompt": "send 30 usdc to 0x3333333333333333333333333333333333333333 on base", "expect": {"action": "send", "tokenIn": "USDC", "amount": "30", "toChain": "base", "recipient": "0x3333333333333333333333333333333333333333"}}
+{"prompt": "quote bridging 30 usdc to polygon", "expect": {"action": "quote_only", "tokenIn": "USDC", "amount": "30", "toChain": "polygon"}}
+{"prompt": "Bridge 1 AP3X to apex fusion", "expect": {"action": "bridge", "tokenIn": "AP3X", "amount": "1", "toChain": "ap3x"}}
+{"prompt": "move 0.75 eth from base to near", "expect": {"tokenIn": "ETH", "amount": "0.75", "fromChain": "base", "toChain": "near"}}
+{"prompt": "swap 40 usdc for eth", "expect": {"clarify": true}}
+{"prompt": "send 5 usdc to kate.near", "expect": {"action": "send", "tokenIn": "USDC", "amount": "5", "toChain": "near", "recipient": "kate.near"}}
