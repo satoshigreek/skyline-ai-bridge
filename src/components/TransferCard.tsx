@@ -71,7 +71,7 @@ export function TransferCard({
   onBusyError: (msg: string) => void;
 }) {
   const [fromChain, setFromChain] = useState<ChainKey>("base");
-  const [tokenIn, setTokenIn] = useState<ScopeToken>("USDC");
+  const [tokenIn, setTokenIn] = useState<ScopeToken>("AP3X");
   const [amount, setAmount] = useState("");
   const [toChain, setToChain] = useState<ChainKey>("ap3x");
   const [tokenOut, setTokenOut] = useState<ScopeToken>("AP3X");

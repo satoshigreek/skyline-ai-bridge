@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Skyline AI Bridge</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+:root {
+  --paper:#07100C; --paper-2:#0E1B16; --paper-3:#15281F;
+  --ink:#EAF3EC; --ink-2:#B8CDBF; --ink-3:#7A9285; --ink-4:#4D6459;
+  --rule:#1F3A30; --rule-2:#132720;
+  --emerald:#4BB87A; --emerald-soft:#7FD5A1; --ember:#D9583E; --ignition:#F2A03C; --base-c:#E07048;
+  --accent:var(--ember); --accent-2:var(--emerald); --good:var(--emerald); --warn:var(--ignition);
+  --f-display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;color:var(--ink);min-height:100vh;font-family:var(--f-display);
+  background:radial-gradient(1100px 520px at 75% -10%,rgba(217,88,62,.09),transparent 62%),
+             radial-gradient(800px 480px at -5% 108%,rgba(75,184,122,.07),transparent 55%),var(--paper);}
+::selection{background:rgba(217,88,62,.4)}
+.wrap{max-width:600px;margin:0 auto;padding:26px 20px 80px}
+.eyebrow{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.mono{font-family:var(--f-mono);font-feature-settings:"tnum";letter-spacing:.02em}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:26px}
+.brand-mark{font-weight:700;font-size:24px;line-height:1;letter-spacing:-.04em;text-transform:uppercase}
+.brand-mark span{font-weight:300;color:var(--accent)}
+.brand-status{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:6px;margin-top:8px}
+.brand-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(75,184,122,.25)}
+.wallet-pill{font-family:var(--f-mono);font-size:11px;color:var(--emerald-soft);border:1px solid var(--rule);border-radius:3px;padding:8px 12px;background:var(--paper-2)}
+.banner{border-radius:3px;padding:10px 14px;font-size:12.5px;margin-bottom:16px;display:flex;gap:8px;align-items:flex-start;line-height:1.5}
+.banner.warn{background:rgba(242,160,60,.08);border:1px solid rgba(242,160,60,.4);color:var(--warn)}
+.prompt-bar{margin-bottom:14px}
+.prompt-bar .eyebrow{margin-bottom:8px;display:block}
+.prompt-row{display:flex;gap:8px}
+input.prompt{flex:1;background:var(--paper-2);border:1px solid var(--rule);color:var(--ink);border-radius:3px;padding:12px 14px;font-size:14px;font-family:var(--f-display)}
+input.prompt::placeholder{color:var(--ink-4)}
+input.prompt:focus{outline:none;border-color:var(--accent)}
+.prompt-hint{font-family:var(--f-mono);font-size:11px;color:var(--warn);margin-top:8px;letter-spacing:.04em}
+details.aiset{margin-top:8px}
+details.aiset summary{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-4);cursor:pointer}
+details.aiset input{width:100%;margin-top:8px;background:var(--paper-2);border:1px solid var(--rule);color:var(--ink);border-radius:3px;padding:9px 11px;font-family:var(--f-mono);font-size:12px}
+button.btn{background:var(--accent);color:#FFF7F4;border:none;border-radius:3px;padding:0 20px;height:44px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;transition:background .15s,transform .05s}
+button.btn:hover{background:#e06a4f;transform:translateY(-1px)}
+button.btn:disabled{background:var(--paper-3);color:var(--ink-4);cursor:not-allowed;transform:none}
+button.btn.secondary{background:transparent;border:1px solid var(--rule);color:var(--ink-2)}
+button.btn.small{height:34px;font-size:11px;padding:0 14px}
+button.btn.cta{width:100%;height:52px;font-size:14px;letter-spacing:.12em;margin-top:14px}
+.xfer-card{background:var(--paper-2);border:1px solid var(--rule);border-radius:4px;padding:18px;box-shadow:0 24px 60px -32px rgba(0,0,0,.7)}
+.xfer-box{background:var(--paper);border:1px solid var(--rule-2);border-radius:3px;padding:14px}
+.boxhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.xfer-row{display:flex;gap:8px;align-items:stretch}
+select.sel,input.amt,input.rcpt{background:var(--paper-3);border:1px solid var(--rule-2);color:var(--ink);border-radius:3px;padding:10px 12px;font-size:14px;font-family:var(--f-display)}
+select.sel{cursor:pointer;min-width:132px;font-weight:500}
+select.sel.tok{min-width:96px}
+select.sel:focus,input.amt:focus,input.rcpt:focus{outline:none;border-color:var(--accent)}
+input.amt{flex:1;text-align:right;font-family:var(--f-mono);font-size:18px;min-width:0}
+input.amt::placeholder{color:var(--ink-4)}
+input.rcpt{width:100%;font-family:var(--f-mono);font-size:12.5px;margin-top:10px}
+input.rcpt::placeholder{color:var(--ink-4)}
+input.rcpt.required{border-color:var(--warn)}
+.xfer-divider{display:flex;justify-content:center;margin:6px 0}
+.xfer-divider .down{width:30px;height:30px;border:1px solid var(--rule);border-radius:3px;background:var(--paper-2);color:var(--accent-2);display:grid;place-items:center;font-size:15px;font-family:var(--f-mono)}
+.est{font-family:var(--f-mono);font-size:20px;color:var(--ink-4);text-align:right;flex:1;align-self:center}
+.est.live{color:var(--ink)}
+.quote-rows{margin-top:14px;border-top:1px solid var(--rule-2);padding-top:12px;display:flex;flex-direction:column;gap:7px}
+.qrow{display:flex;justify-content:space-between;font-size:12.5px;gap:12px}
+.qrow .k{color:var(--ink-3);font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
+.qrow .v{color:var(--ink-2);font-family:var(--f-mono);font-size:12px;text-align:right;word-break:break-all}
+.qrow .v.good{color:var(--good)}
+.rail-tag{display:inline-block;font-family:var(--f-mono);font-size:9.5px;font-weight:600;padding:3px 8px;border-radius:2px;letter-spacing:.14em;text-transform:uppercase}
+.rail-tag.A{background:rgba(217,88,62,.16);color:var(--base-c);border:1px solid rgba(217,88,62,.35)}
+.rail-tag.B{background:rgba(75,184,122,.14);color:var(--emerald-soft);border:1px solid rgba(75,184,122,.35)}
+.gate{margin-top:12px;padding:12px;border:1px solid rgba(242,160,60,.4);background:rgba(242,160,60,.07);border-radius:3px;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.gate input[type="text"]{width:100%;margin-top:8px;background:var(--paper);border:1px solid var(--rule);color:var(--ink);border-radius:3px;padding:9px 11px;font-family:var(--f-mono);font-size:13px}
+.gate label{display:flex;gap:8px;align-items:center;cursor:pointer;margin-top:8px}
+.gate .addr{font-family:var(--f-mono);font-size:11.5px;word-break:break-all;color:var(--ink);background:var(--paper);border:1px dashed var(--rule);padding:8px;border-radius:2px;margin-top:8px}
+.panel{background:var(--paper-2);border:1px solid var(--rule);border-radius:4px;padding:18px;margin-top:14px}
+.panel h2{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3);margin:0 0 12px;font-weight:500}
+.status-line{display:flex;gap:10px;align-items:center;font-size:13.5px;padding:7px 0;color:var(--ink-2)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.pending{background:var(--warn);animation:pulse 1.2s infinite;box-shadow:0 0 8px var(--warn)}
+.dot.done{background:var(--good);box-shadow:0 0 8px var(--good)}
+.dot.bad{background:var(--ember);box-shadow:0 0 8px var(--ember)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.countdown{font-family:var(--f-mono);font-weight:600;color:var(--ink)}
+.countdown.urgent{color:var(--ember)}
+.deposit-box{background:var(--paper);border:1px dashed var(--accent-2);border-radius:3px;padding:13px;margin:12px 0;font-family:var(--f-mono);font-size:12.5px;word-break:break-all}
+.notes{font-size:12.5px;color:var(--ink-3);margin-top:10px;border-left:2px solid var(--rule);padding-left:12px;line-height:1.55}
+.err{color:var(--ember);font-size:13px;margin-top:8px;line-height:1.5;font-family:var(--f-mono);word-break:break-word}
+a.link{color:var(--accent-2)}
+.history-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--rule-2);font-size:12.5px;color:var(--ink-2)}
+.history-item:last-child{border-bottom:none}
+.hstate{font-family:var(--f-mono);font-size:9.5px;font-weight:600;padding:3px 8px;border-radius:2px;letter-spacing:.1em}
+.hstate.ok{background:rgba(75,184,122,.14);color:var(--emerald-soft)}
+.hstate.bad{background:rgba(217,88,62,.16);color:var(--base-c)}
+.hstate.run{background:rgba(242,160,60,.14);color:var(--ignition)}
+.skeleton{height:13px;border-radius:2px;margin:8px 0;background:linear-gradient(90deg,var(--paper-3) 25%,var(--rule) 50%,var(--paper-3) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.footnote{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-4);text-align:center;margin-top:30px;line-height:2}
+.hidden{display:none!important}
+@media (max-width:560px){
+  .wrap{padding:16px 12px 60px}.topbar{flex-wrap:wrap;gap:12px}
+  .prompt-row{flex-direction:column}.prompt-row button.btn{width:100%;height:46px}
+  .xfer-row{flex-wrap:wrap}select.sel{flex:1 1 45%;min-width:0}input.amt{flex:1 1 100%}
+  .history-item{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="brand-mark">Skyline <span>AI Bridge</span></div>
+      <div class="brand-status">LayerZero + NEAR Intents · Live</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="walletPill" class="wallet-pill hidden"></span>
+      <button id="connectBtn" class="btn">Connect Wallet</button>
+    </div>
+  </div>
+
+  <div id="noWalletBanner" class="banner warn hidden">
+    <span>⚠️</span>
+    <span><b>No wallet detected.</b> Install MetaMask / Coinbase Wallet — and note wallets don't
+    inject into <span class="mono">file://</span> pages: serve this file over http(s)
+    (e.g. <span class="mono">python -m http.server</span>) or host it anywhere. Live quotes work
+    without a wallet; signing needs one.</span>
+  </div>
+
+  <div class="prompt-bar">
+    <span class="eyebrow">Or just say it</span>
+    <div class="prompt-row">
+      <input id="prompt" class="prompt" placeholder="e.g. bridge 25 AP3X to Apex Fusion · swap 50 USDC for ADA" />
+      <button id="fillBtn" class="btn">Fill</button>
+    </div>
+    <div id="promptHint" class="prompt-hint hidden"></div>
+    <details class="aiset">
+      <summary>AI settings — optional Anthropic key for smarter parsing</summary>
+      <input id="aiKey" type="password" placeholder="sk-ant-… (stored only in this browser; without it a built-in parser is used)" />
+    </details>
+  </div>
+
+  <div class="xfer-card">
+    <div class="xfer-box">
+      <div class="boxhead"><span class="eyebrow">From</span><span class="eyebrow" id="fromLabel">Base</span></div>
+      <div class="xfer-row">
+        <select id="fromChain" class="sel"></select>
+        <select id="tokenIn" class="sel tok"></select>
+        <input id="amount" class="amt" inputmode="decimal" placeholder="0.0" />
+      </div>
+    </div>
+    <div class="xfer-divider"><span class="down">↓</span></div>
+    <div class="xfer-box">
+      <div class="boxhead"><span class="eyebrow">To</span><span class="eyebrow" id="toLabel"></span></div>
+      <div class="xfer-row">
+        <select id="toChain" class="sel"></select>
+        <select id="tokenOut" class="sel tok"></select>
+        <div id="estOut" class="est">0.0</div>
+      </div>
+      <input id="recipient" class="rcpt" placeholder="Recipient (blank = your wallet)" />
+    </div>
+    <div id="quoteArea"></div>
+    <div id="gateArea"></div>
+    <button id="cta" class="btn cta">Get quote</button>
+  </div>
+
+  <div id="execPanel" class="panel hidden"></div>
+  <div id="historyPanel" class="panel hidden"><h2>Your transfers</h2><div id="historyList"></div></div>
+
+  <p class="footnote">
+    AP3X · USDC · USDT · ADA · ETH · WETH · BTC · WBTC — Base · BNB · Apex Fusion · Cardano<br/>
+    The AI only proposes · you sign in your own wallet · failures refund automatically
+  </p>
+</div>
+
+<script>
+"use strict";
+/* =================================================================== *
+ *  Skyline AI Bridge — standalone. Two live rails, zero backend:      *
+ *  Rail A: the AP3X LayerZero OFT mesh (bAP3X/bnAP3X/AP3X), verified  *
+ *          on-chain; quoteSend via public RPC, send via your wallet.  *
+ *  Rail B: NEAR Intents 1-Click API (CORS-open) — dry quote, deposit  *
+ *          address, one plain transfer, status polling, auto-refunds. *
+ * =================================================================== */
+
+// ---------- config ----------
+const CHAINS = {
+  base:    { label:"Base",              evm:true,  chainIdHex:"0x2105", chainId:8453, oneClick:"base",
+             rpc:"https://mainnet.base.org", explorer:"https://basescan.org", native:"ETH",
+             add:{chainName:"Base",nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18},rpcUrls:["https://mainnet.base.org"],blockExplorerUrls:["https://basescan.org"]} },
+  bsc:     { label:"BNB Chain",         evm:true,  chainIdHex:"0x38",   chainId:56,   oneClick:"bsc",
+             rpc:"https://bsc-dataseed.binance.org", explorer:"https://bscscan.com", native:"BNB",
+             add:{chainName:"BNB Smart Chain",nativeCurrency:{name:"BNB",symbol:"BNB",decimals:18},rpcUrls:["https://bsc-dataseed.binance.org"],blockExplorerUrls:["https://bscscan.com"]} },
+  ap3x:    { label:"Apex Fusion (AP3X)",evm:true },
+  cardano: { label:"Cardano",           evm:false, oneClick:"cardano" },
+};
+const SCOPE_CHAINS = ["base","bsc","ap3x","cardano"];
+const ORIGINS = ["base","bsc"];
+const CHAIN_TOKENS = {
+  base:["AP3X","USDC","ETH","WETH","BTC","WBTC","ADA"],
+  bsc:["AP3X","USDC","USDT","ADA","WETH","WBTC"],
+  ap3x:["AP3X"], cardano:["ADA"],
+};
+const TOKEN_DISPLAY = { base:{BTC:"cbBTC",ADA:"cbADA",AP3X:"bAP3X"}, bsc:{ADA:"ADA (BEP-20)",AP3X:"bnAP3X"} };
+const tokenLabel = (c,t) => (TOKEN_DISPLAY[c]||{})[t] || t;
+// AP3X OFT mesh — same contract address on Base and BNB, verified on-chain
+// (name/symbol/oftVersion/peers) with live quoteSend on every leg.
+const MESH = {
+  oft:"0x9208d82f121806a34a39bb90733b4c5c54f3993e",
+  eids:{ base:30184, bsc:30102, ap3x:30384 },
+};
+const ALIASES = { BTC:["BTC","cbBTC","BTCB"], WBTC:["WBTC"], ETH:["ETH"], WETH:["WETH"], ADA:["ADA","cbADA"], USDC:["USDC"], USDT:["USDT"] };
+const ONECLICK = "https://1click.chaindefuser.com";
+const SPEND_CAP_USD = 1000;
+const SLIPPAGE_BPS_A = 50, SLIPPAGE_BPS_B = 100;
+const DRY_REFUND = "0x000000000000000000000000000000000000dEaD"; // dry quotes only — never used for execution
+
+// ---------- tiny utils ----------
+const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise(r=>setTimeout(r,ms));
+function toSmallest(amount, decimals){
+  if(!/^\d+(\.\d+)?$/.test(amount)) throw new Error("bad amount");
+  const [w,f=""] = amount.split(".");
+  return BigInt(w + f.slice(0,decimals).padEnd(decimals,"0"));
+}
+function fromSmallest(v, decimals, maxFrac=6){
+  v = BigInt(v);
+  const s = v.toString().padStart(decimals+1,"0");
+  const w = s.slice(0, s.length-decimals) || "0";
+  let f = decimals>0 ? s.slice(s.length-decimals) : "";
+  f = f.slice(0,maxFrac).replace(/0+$/,"");
+  return f ? w+"."+f : w;
+}
+const isEvmAddr = (a) => /^0x[a-fA-F0-9]{40}$/.test(a||"");
+const short = (a) => a.slice(0,6)+"…"+a.slice(-4);
+
+// ---------- ABI encoding (verified byte-exact vs viem + live round-trip) ----------
+const SEL_QUOTESEND="0x3b6f743b", SEL_SEND="0xc7c7f5b3", SEL_TRANSFER="0xa9059cbb";
+const wHex = (h) => h.replace(/^0x/,"").toLowerCase().padStart(64,"0");
+const wNum = (n) => BigInt(n).toString(16).padStart(64,"0");
+const encTuple = (eid,toB32,amt,min) => wNum(eid)+wHex(toB32)+wNum(amt)+wNum(min)+wNum(224)+wNum(256)+wNum(288)+wNum(0)+wNum(0)+wNum(0);
+const encQuoteSend = (eid,toB32,amt,min) => SEL_QUOTESEND+wNum(64)+wNum(0)+encTuple(eid,toB32,amt,min);
+const encSend = (eid,toB32,amt,min,fee,refund) => SEL_SEND+wNum(128)+wNum(fee)+wNum(0)+wHex(refund)+encTuple(eid,toB32,amt,min);
+const encTransfer = (to,amt) => SEL_TRANSFER+wHex(to)+wNum(amt);
+const padAddr32 = (a) => "0x"+wHex(a);
+
+async function rpcCall(chainKey, to, data){
+  const res = await fetch(CHAINS[chainKey].rpc, { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({jsonrpc:"2.0",id:1,method:"eth_call",params:[{to,data},"latest"]}) });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error.message);
+  return j.result;
+}
+
+// ---------- wallet ----------
+let wallet = null;
+async function connectWallet(){
+  if(!window.ethereum){ $("noWalletBanner").classList.remove("hidden"); return; }
+  const [acct] = await window.ethereum.request({method:"eth_requestAccounts"});
+  wallet = acct;
+  $("walletPill").textContent = short(acct);
+  $("walletPill").classList.remove("hidden");
+  $("connectBtn").textContent = "Disconnect";
+  refreshCta();
+}
+function disconnectWallet(){
+  wallet = null;
+  $("walletPill").classList.add("hidden");
+  $("connectBtn").textContent = "Connect Wallet";
+  refreshCta();
+}
+async function ensureChain(chainKey){
+  const c = CHAINS[chainKey];
+  try {
+    await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:c.chainIdHex}]});
+  } catch(e){
+    if (e && (e.code===4902 || /unrecognized|not added/i.test(e.message||""))) {
+      await window.ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:c.chainIdHex,...c.add}]});
+    } else throw e;
+  }
+}
+if (window.ethereum) window.ethereum.on?.("accountsChanged",(a)=>{ a.length?(wallet=a[0],$("walletPill").textContent=short(a[0])):disconnectWallet(); });
+
+// ---------- 1-Click client ----------
+let tokenCache = null;
+async function getOneClickTokens(){
+  if (tokenCache) return tokenCache;
+  const r = await fetch(ONECLICK+"/v0/tokens");
+  tokenCache = await r.json();
+  return tokenCache;
+}
+function resolveAsset(tokens, chainKey, symbol){
+  const bc = CHAINS[chainKey].oneClick;
+  if (!bc) return null;
+  for (const want of (ALIASES[symbol]||[symbol])){
+    const hits = tokens.filter(t=>t.blockchain===bc && t.symbol.toUpperCase()===want.toUpperCase());
+    if (hits.length) return hits.find(t=>typeof t.price==="number") || hits[0];
+  }
+  return null;
+}
+async function oneClickQuote(p){
+  const body = {
+    dry:p.dry, swapType:"EXACT_INPUT", slippageTolerance:SLIPPAGE_BPS_B,
+    originAsset:p.originAsset, destinationAsset:p.destinationAsset, amount:p.amount,
+    recipient:p.recipient, recipientType:"DESTINATION_CHAIN",
+    refundTo:p.refundTo, refundType:"ORIGIN_CHAIN",
+    deadline:new Date(Date.now()+10*60*1000).toISOString(), depositType:"ORIGIN_CHAIN",
+  };
+  const r = await fetch(ONECLICK+"/v0/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const txt = await r.text();
+  if (!r.ok) throw new Error("1-Click: "+(JSON.parse(txt).message||txt).slice(0,160));
+  return JSON.parse(txt).quote;
+}
+const oneClickStatus = (dep) => fetch(ONECLICK+"/v0/status?depositAddress="+encodeURIComponent(dep)).then(r=>r.json());
+const oneClickSubmit = (txHash,dep) => fetch(ONECLICK+"/v0/deposit/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({txHash,depositAddress:dep})}).catch(()=>{});
+
+// ---------- heuristic parser (offline fallback) ----------
+const TOKEN_WORDS = {usdc:"USDC",usdt:"USDT",eth:"ETH",weth:"WETH",btc:"BTC",wbtc:"WBTC",cbbtc:"BTC",ada:"ADA",cbada:"ADA",ap3x:"AP3X",bap3x:"AP3X",bnap3x:"AP3X",bitcoin:"BTC",cardano:"ADA"};
+const TOKEN_HOME = {BTC:"base",ADA:"cardano",AP3X:"ap3x"};
+const CHAIN_PATTERNS = [
+  [/apex\s*fusion|apexfusion|\bapex\b|\bap3x\b/i,"ap3x"],[/\bbase\b/i,"base"],
+  [/\bbsc\b|\bbnb\b|\bbinance\b/i,"bsc"],[/\bcardano\b/i,"cardano"],
+];
+const chainAt = (s)=>{ for(const [re,k] of CHAIN_PATTERNS) if(re.test(s)) return k; return null; };
+function heuristicParse(raw){
+  let text = raw.toLowerCase().replace(/(\d),(\d)/g,"$1$2");
+  let recipient=null;
+  const evm = raw.match(/0x[a-fA-F0-9]{40}/); const cardA = raw.match(/\baddr1[a-z0-9]{20,}\b/i);
+  if(evm){recipient=evm[0];text=text.replace(evm[0].toLowerCase()," <r> ");}
+  else if(cardA){recipient=cardA[0];text=text.replace(cardA[0].toLowerCase()," <r> ");}
+  const amtM = text.match(/(?<![a-z0-9.])(\d+(?:\.\d+)?)(?![0-9a-z])/);
+  const amount = amtM ? amtM[1] : null;
+  let fromChain=null, toChain=null;
+  const slot=(re)=>{ for(const m of text.matchAll(re)){ const c=chainAt(m[1]); if(c) return {ph:m[0],c}; } return null; };
+  const f=slot(/\bfrom\s+(apex\s*fusion|apexfusion|[a-z0-9]+(?:\s+(?:chain|network))?)/g); if(f){fromChain=f.c;text=text.replace(f.ph," ");}
+  const t=slot(/\b(?:to|onto)\s+(apex\s*fusion|apexfusion|[a-z0-9]+(?:\s+(?:chain|network))?)/g);
+  let toWord=null; if(t){toChain=t.c;toWord=t.ph.split(/\s+/)[1];text=text.replace(t.ph," ");}
+  const o=slot(/\bon\s+(apex\s*fusion|apexfusion|[a-z0-9]+(?:\s+(?:chain|network))?)/g);
+  if(o){ if(recipient&&!toChain)toChain=o.c; else if(!fromChain)fromChain=o.c; else if(!toChain)toChain=o.c; text=text.replace(o.ph," "); }
+  let tokenOut=null;
+  for(const m of text.matchAll(/\b(?:for|into)\s+([a-z0-9]+)\b/g)){ if(TOKEN_WORDS[m[1]]){tokenOut=TOKEN_WORDS[m[1]];text=text.replace(m[0]," ");break;} }
+  const buy=text.match(/\bbuy\s+([a-z0-9]+)\b[^.]*?\bwith\s+(?:[\d.]+\s+)?([a-z0-9]+)\b/);
+  let buyIn=null; if(buy&&TOKEN_WORDS[buy[1]]&&TOKEN_WORDS[buy[2]]){tokenOut=TOKEN_WORDS[buy[1]];buyIn=TOKEN_WORDS[buy[2]];text=text.replace(buy[0]," ");}
+  const seen=[]; for(const m of text.matchAll(/[a-z0-9]+/g)){const tk=TOKEN_WORDS[m[0]];if(tk&&!seen.includes(tk))seen.push(tk);}
+  let tokenIn = buyIn || seen[0] || null;
+  if(!tokenOut&&seen.length>1&&seen[1]!==tokenIn)tokenOut=seen[1];
+  if(!tokenOut&&toWord&&TOKEN_WORDS[toWord]&&TOKEN_WORDS[toWord]!==tokenIn&&/\b(swap|convert|trade|exchange|sell|turn)\b/.test(raw.toLowerCase()))tokenOut=TOKEN_WORDS[toWord];
+  if(tokenOut===tokenIn)tokenOut=null;
+  if(!toChain&&recipient&&recipient.startsWith("addr1"))toChain="cardano";
+  if(!toChain&&tokenOut&&TOKEN_HOME[tokenOut])toChain=TOKEN_HOME[tokenOut];
+  if(!fromChain)fromChain="base";
+  return {tokenIn,tokenOut,amount,fromChain,toChain,recipient};
+}
+async function claudeParse(raw, key){
+  const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{
+    "Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01",
+    "anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:400,
+      system:"Extract a cross-chain transfer intent. Chains: base, bsc (BNB), ap3x (Apex Fusion), cardano. Tokens: AP3X USDC USDT ADA ETH WETH BTC WBTC. Never invent values; null when missing. Respond ONLY by calling record_intent.",
+      tools:[{name:"record_intent",description:"Record the intent.",input_schema:{type:"object",properties:{
+        tokenIn:{type:["string","null"]},tokenOut:{type:["string","null"]},amount:{type:["string","null"]},
+        fromChain:{type:["string","null"]},toChain:{type:["string","null"]},recipient:{type:["string","null"]}},
+        required:["tokenIn","tokenOut","amount","fromChain","toChain","recipient"]}}],
+      tool_choice:{type:"tool",name:"record_intent"},
+      messages:[{role:"user",content:raw}]})});
+  if(!r.ok) throw new Error("Anthropic "+r.status);
+  const j = await r.json();
+  const tu = (j.content||[]).find(b=>b.type==="tool_use");
+  if(!tu) throw new Error("no tool call");
+  return tu.input;
+}
+
+// ---------- card state ----------
+let S = { from:"base", tokenIn:"AP3X", to:"ap3x", tokenOut:"AP3X", quote:null, avail:null, busy:false };
+const isFamilyA = (tok) => tok==="AP3X";
+const meshDest = (to) => to in MESH.eids;
+function railFor(){
+  if (isFamilyA(S.tokenIn) || S.to==="ap3x") {
+    if (!isFamilyA(S.tokenIn)) return {err:"Only AP3X bridges to Apex Fusion — pick AP3X or another destination."};
+    if (!meshDest(S.to)) return {err:"AP3X moves between Base, BNB Chain and Apex Fusion."};
+    return {rail:"A"};
+  }
+  return {rail:"B"};
+}
+function availOK(chain,tok){ if(tok==="AP3X"||chain==="ap3x") return true; const a=S.avail; return a&&a[chain]?(a[chain][tok]??false):true; }
+
+function renderSelects(){
+  const fc=$("fromChain"), ti=$("tokenIn"), tc=$("toChain"), to=$("tokenOut");
+  fc.innerHTML = ORIGINS.map(c=>`<option value="${c}" ${c===S.from?"selected":""}>${CHAINS[c].label}</option>`).join("");
+  const fromToks = CHAIN_TOKENS[S.from];
+  if(!fromToks.includes(S.tokenIn)||!availOK(S.from,S.tokenIn)) S.tokenIn = fromToks.find(t=>availOK(S.from,t))||fromToks[0];
+  ti.innerHTML = fromToks.map(t=>{const ok=availOK(S.from,t);return `<option value="${t}" ${t===S.tokenIn?"selected":""} ${ok?"":"disabled"}>${tokenLabel(S.from,t)}${ok?"":" · soon"}</option>`;}).join("");
+  const dests = SCOPE_CHAINS.filter(c=>c!==S.from);
+  if(!dests.includes(S.to)) S.to = dests[0];
+  tc.innerHTML = dests.map(c=>`<option value="${c}" ${c===S.to?"selected":""}>${CHAINS[c].label}</option>`).join("");
+  const destToks = CHAIN_TOKENS[S.to];
+  if(!destToks.includes(S.tokenOut)||!availOK(S.to,S.tokenOut))
+    S.tokenOut = (destToks.includes(S.tokenIn)&&availOK(S.to,S.tokenIn)) ? S.tokenIn : (destToks.find(t=>availOK(S.to,t))||destToks[0]);
+  to.innerHTML = destToks.map(t=>{const ok=availOK(S.to,t);return `<option value="${t}" ${t===S.tokenOut?"selected":""} ${ok?"":"disabled"}>${tokenLabel(S.to,t)}${ok?"":" · soon"}</option>`;}).join("");
+  $("fromLabel").textContent = CHAINS[S.from].label;
+  $("toLabel").textContent = CHAINS[S.to].label;
+  const nonEvm = !CHAINS[S.to].evm;
+  $("recipient").placeholder = nonEvm ? CHAINS[S.to].label+" address (required)" : "Recipient (blank = your wallet)";
+  $("recipient").classList.toggle("required", nonEvm && !$("recipient").value.trim());
+  refreshCta();
+}
+function clearQuote(){ S.quote=null; $("quoteArea").innerHTML=""; $("gateArea").innerHTML=""; $("estOut").textContent="0.0"; $("estOut").classList.remove("live"); refreshCta(); }
+function refreshCta(){
+  const amountOk = /^\d+(\.\d+)?$/.test($("amount").value) && Number($("amount").value)>0;
+  const nonEvm = !CHAINS[S.to].evm;
+  const btn = $("cta");
+  if (S.busy){ btn.disabled=true; return; }
+  if (!S.quote){
+    btn.textContent = "Get quote";
+    btn.disabled = !amountOk || (nonEvm && !$("recipient").value.trim()) || !availOK(S.from,S.tokenIn) || !availOK(S.to,S.tokenOut);
+  } else {
+    btn.textContent = wallet ? (S.quote.rail==="A"?"Confirm & sign":"Confirm — get deposit address") : "Connect wallet to sign";
+    btn.disabled = !wallet || !gatesSatisfied();
+  }
+}
+function gatesSatisfied(){
+  const q=S.quote; if(!q) return false;
+  if(q.usdIn!=null && q.usdIn>SPEND_CAP_USD){ const inp=$("capInput"); if(!inp||inp.value.trim()!==q.amountIn) return false; }
+  if(q.needRecipientConfirm){ const cb=$("rcptCheck"); if(!cb||!cb.checked) return false; }
+  return true;
+}
+const book = () => JSON.parse(localStorage.getItem("skyline.book")||"{}");
+const remember = (a) => { const b=book(); if(!b[a.toLowerCase()]){b[a.toLowerCase()]=Date.now();localStorage.setItem("skyline.book",JSON.stringify(b));} };
+
+// ---------- quoting ----------
+async function getQuote(){
+  clearQuote(); S.busy=true; refreshCta();
+  $("quoteArea").innerHTML = '<div class="quote-rows"><div class="skeleton" style="width:70%"></div><div class="skeleton" style="width:45%"></div></div>';
+  try{
+    const amount = $("amount").value.trim();
+    const r = railFor();
+    if (r.err) throw new Error(r.err);
+    if (r.rail==="A") await quoteRailA(amount); else await quoteRailB(amount);
+  } catch(e){
+    $("quoteArea").innerHTML = '<div class="err">⛔ '+(e.message||e)+' — nothing was sent.</div>';
+  } finally { S.busy=false; refreshCta(); }
+}
+async function quoteRailA(amount){
+  const recipient = $("recipient").value.trim() || wallet;
+  if (!recipient) throw new Error("Connect a wallet or enter a recipient (0x…)");
+  if (!isEvmAddr(recipient)) throw new Error("AP3X-mesh recipients are 0x… addresses");
+  const amt = toSmallest(amount,18);
+  const min = amt - (amt*BigInt(SLIPPAGE_BPS_A))/10000n;
+  const data = encQuoteSend(MESH.eids[S.to], padAddr32(recipient), amt, min);
+  const res = await rpcCall(S.from, MESH.oft, data);
+  const fee = BigInt(res.slice(0,66));
+  S.quote = {
+    rail:"A", amountIn:amount, estOut:amount, minOut:fromSmallest(min,18),
+    feeText: fromSmallest(fee,18,8)+" "+CHAINS[S.from].native, feeWei:fee.toString(),
+    recipient, usdIn:null, eta:"~2 min",
+    needRecipientConfirm: wallet && recipient.toLowerCase()!==wallet.toLowerCase() && !book()[recipient.toLowerCase()],
+    plan:{eid:MESH.eids[S.to], amt:amt.toString(), min:min.toString()},
+  };
+  renderQuote();
+}
+async function quoteRailB(amount){
+  const tokens = await getOneClickTokens();
+  const tin = resolveAsset(tokens,S.from,S.tokenIn);
+  if(!tin) throw new Error(tokenLabel(S.from,S.tokenIn)+" isn't carried on "+CHAINS[S.from].label+" by NEAR Intents yet");
+  const tout = resolveAsset(tokens,S.to,S.tokenOut);
+  if(!tout) throw new Error(tokenLabel(S.to,S.tokenOut)+" isn't carried on "+CHAINS[S.to].label+" yet");
+  let recipient = $("recipient").value.trim();
+  if(!recipient){ if(CHAINS[S.to].evm && wallet) recipient=wallet; else if(CHAINS[S.to].evm) recipient=DRY_REFUND; else throw new Error(CHAINS[S.to].label+" needs a recipient address"); }
+  const amtSmall = toSmallest(amount, tin.decimals).toString();
+  const q = await oneClickQuote({dry:true, originAsset:tin.assetId, destinationAsset:tout.assetId,
+    amount:amtSmall, recipient, refundTo: wallet||DRY_REFUND});
+  const usdIn = q.amountInUsd?Number(q.amountInUsd):(typeof tin.price==="number"?Number(amount)*tin.price:null);
+  S.quote = {
+    rail:"B", amountIn:fromSmallest(q.amountIn,tin.decimals), estOut:fromSmallest(q.amountOut,tout.decimals),
+    minOut: q.minAmountOut?fromSmallest(q.minAmountOut,tout.decimals):fromSmallest(q.amountOut,tout.decimals),
+    feeText: (q.amountInUsd&&q.amountOutUsd)?("≈ $"+Math.max(0,Number(q.amountInUsd)-Number(q.amountOutUsd)).toFixed(2)+" spread + 0.2%"):"included + 0.2% no-auth fee",
+    recipient, usdIn, eta: q.timeEstimate?("~"+q.timeEstimate+"s"):"~ minutes",
+    needRecipientConfirm: wallet && recipient.toLowerCase()!==wallet.toLowerCase() && recipient!==DRY_REFUND && !book()[recipient.toLowerCase()],
+    bAssets:{tin,tout,amtSmall},
+  };
+  renderQuote();
+}
+function renderQuote(){
+  const q=S.quote;
+  $("estOut").textContent=q.estOut; $("estOut").classList.add("live");
+  $("quoteArea").innerHTML = `<div class="quote-rows">
+    <div class="qrow"><span class="k">Route</span><span class="v"><span class="rail-tag ${q.rail}">${q.rail==="A"?"LayerZero OFT":"NEAR Intents (1-Click)"}</span></span></div>
+    <div class="qrow"><span class="k">Est. received</span><span class="v good">${q.estOut} ${tokenLabel(S.to,S.tokenOut)}</span></div>
+    <div class="qrow"><span class="k">Min received</span><span class="v">${q.minOut} ${tokenLabel(S.to,S.tokenOut)}</span></div>
+    <div class="qrow"><span class="k">${q.rail==="A"?"LayerZero fee":"Fees"}</span><span class="v">${q.feeText}</span></div>
+    <div class="qrow"><span class="k">ETA</span><span class="v">${q.eta}</span></div>
+    <div class="qrow"><span class="k">Recipient</span><span class="v">${q.recipient===DRY_REFUND?"(connect wallet)":q.recipient}${wallet&&q.recipient.toLowerCase()===wallet.toLowerCase()?" (you)":""}</span></div>
+    ${q.usdIn!=null?`<div class="qrow"><span class="k">Value</span><span class="v">≈ $${q.usdIn.toFixed(2)}</span></div>`:""}
+  </div>`;
+  let gates="";
+  if(q.usdIn!=null && q.usdIn>SPEND_CAP_USD)
+    gates += `<div class="gate">≈ $${q.usdIn.toFixed(0)} is above the $${SPEND_CAP_USD} safety cap. Retype the amount (<span class="mono">${q.amountIn}</span>) to unlock:<input id="capInput" type="text" placeholder="${q.amountIn}" oninput="refreshCta()" /></div>`;
+  if(q.needRecipientConfirm)
+    gates += `<div class="gate">First time sending to this recipient — check every character:<div class="addr">${q.recipient}</div><label><input id="rcptCheck" type="checkbox" onchange="refreshCta()"/><span>This address is correct</span></label></div>`;
+  $("gateArea").innerHTML = gates;
+  refreshCta();
+}
+
+// ---------- execution ----------
+async function confirm_(){
+  const q=S.quote; if(!q||!wallet) return;
+  S.busy=true; refreshCta();
+  try{
+    if(q.rail==="A") await execRailA(); else await execRailB();
+  } catch(e){
+    showPanel(`<div class="err">⛔ ${(e.message||e).toString().slice(0,220)} — your funds never left your wallet.</div>`);
+  } finally { S.busy=false; refreshCta(); }
+}
+function showPanel(html){ const p=$("execPanel"); p.innerHTML=html; p.classList.remove("hidden"); }
+
+async function execRailA(){
+  const q=S.quote;
+  remember(q.recipient);
+  await ensureChain(S.from);
+  showPanel(`<h2>Sign &amp; bridge — LayerZero OFT</h2><div class="status-line"><span class="dot pending"></span>Check your wallet… bridging ${q.amountIn} ${tokenLabel(S.from,"AP3X")} to ${CHAINS[S.to].label}</div>`);
+  const data = encSend(q.plan.eid, padAddr32(q.recipient), BigInt(q.plan.amt), BigInt(q.plan.min), BigInt(q.feeWei), wallet);
+  const txHash = await window.ethereum.request({method:"eth_sendTransaction",params:[{
+    from:wallet, to:MESH.oft, data, value:"0x"+BigInt(q.feeWei).toString(16) }]});
+  addHistory({rail:"A",sum:`${q.amountIn} ${tokenLabel(S.from,"AP3X")} → ${CHAINS[S.to].label}`,state:"submitted",txHash});
+  showPanel(`<h2>Sign &amp; bridge — LayerZero OFT</h2>
+    <div class="status-line"><span class="dot done"></span>Submitted.</div>
+    <p class="notes">Track delivery on <a class="link" target="_blank" href="https://layerzeroscan.com/tx/${txHash}">LayerZero Scan</a>.</p>`);
+}
+
+let pollTimer=null, countdownTimer=null;
+async function execRailB(){
+  const q=S.quote;
+  if(q.recipient===DRY_REFUND) throw new Error("Connect your wallet first (recipient/refund address)");
+  remember(q.recipient);
+  // REAL quote — creates the deposit address.
+  const real = await oneClickQuote({dry:false, originAsset:q.bAssets.tin.assetId, destinationAsset:q.bAssets.tout.assetId,
+    amount:q.bAssets.amtSmall, recipient:q.recipient, refundTo:wallet});
+  if(!real.depositAddress) throw new Error("no deposit address returned");
+  const dep = real.depositAddress, deadline = real.deadline||null;
+  const tin = q.bAssets.tin;
+  const native = tin.symbol===CHAINS[S.from].native && !tin.contractAddress;
+  showPanel(`<h2>Execute — NEAR Intents</h2>
+    <p class="notes">Sign ONE transfer of <b>${q.amountIn} ${tin.symbol}</b> to this deposit address on ${CHAINS[S.from].label}. Solvers do the rest; failures refund to your wallet.</p>
+    <div class="deposit-box">${dep}</div>
+    ${deadline?`<div class="status-line"><span class="dot pending"></span>Quote expires in <span id="cd" class="countdown"></span>&nbsp;— don't send after expiry.</div>`:""}
+    <div style="margin-top:10px"><button id="signB" class="btn">Sign transfer (${q.amountIn} ${tin.symbol})</button></div>
+    <div id="bStatus"></div>`);
+  if(deadline){
+    const cd=$("cd");
+    countdownTimer=setInterval(()=>{ const ms=new Date(deadline)-Date.now();
+      if(ms<=0){cd.textContent="expired";cd.classList.add("urgent");$("signB").disabled=true;clearInterval(countdownTimer);}
+      else{const s=Math.floor(ms/1000);cd.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");cd.classList.toggle("urgent",s<60);} },1000);
+  }
+  $("signB").onclick = async ()=>{
+    try{
+      $("signB").disabled=true;
+      await ensureChain(S.from);
+      const params = native
+        ? {from:wallet,to:dep,value:"0x"+BigInt(q.bAssets.amtSmall).toString(16)}
+        : {from:wallet,to:tin.contractAddress,data:encTransfer(dep,BigInt(q.bAssets.amtSmall))};
+      const txHash = await window.ethereum.request({method:"eth_sendTransaction",params:[params]});
+      const h = addHistory({rail:"B",sum:`${q.amountIn} ${tin.symbol} → ${CHAINS[S.to].label}`,state:"PENDING_DEPOSIT",txHash,dep,exp:CHAINS[S.from].explorer});
+      oneClickSubmit(txHash,dep);
+      if(countdownTimer)clearInterval(countdownTimer);
+      pollStatus(dep,h,txHash);
+    }catch(e){ $("signB").disabled=false; $("bStatus").innerHTML='<div class="err">⛔ '+(e.message||e).toString().slice(0,180)+' — your funds never left your wallet.</div>'; }
+  };
+}
+const EXPLAIN={PENDING_DEPOSIT:"Waiting for your transfer to land…",KNOWN_DEPOSIT_TX:"Transfer seen — confirming…",PROCESSING:"Solvers are executing your swap…",SUCCESS:"Done — funds delivered.",INCOMPLETE_DEPOSIT:"Deposit was under the quote — refunding to your wallet.",REFUNDED:"Refunded to your wallet — nothing lost, the swap just didn't fill.",FAILED:"Swap failed — refund in progress to your wallet."};
+function pollStatus(dep, histId, txHash){
+  const TERMINAL=["SUCCESS","REFUNDED","FAILED","INCOMPLETE_DEPOSIT"];
+  const tick=async()=>{
+    try{
+      const s=await oneClickStatus(dep);
+      if(!s.status) return;
+      updHistory(histId,s.status);
+      $("bStatus").innerHTML=`<div class="status-line"><span class="dot ${s.status==="SUCCESS"?"done":TERMINAL.includes(s.status)?"bad":"pending"}"></span><b>${s.status}</b></div>
+        <p class="notes">${EXPLAIN[s.status]||"Working…"} ${txHash?`· <a class="link" target="_blank" href="${CHAINS[S.from].explorer}/tx/${txHash}">your tx</a>`:""}</p>`;
+      if(TERMINAL.includes(s.status)){ clearInterval(pollTimer); }
+    }catch(_){}
+  };
+  tick(); pollTimer=setInterval(tick,5000);
+}
+
+// ---------- history (localStorage) ----------
+const histKey="skyline.hist.v2";
+const getHist=()=>JSON.parse(localStorage.getItem(histKey)||"[]");
+function addHistory(e){ const id=Date.now().toString(36); const all=getHist(); all.unshift({id,wallet,ts:Date.now(),...e}); localStorage.setItem(histKey,JSON.stringify(all.slice(0,50))); renderHistory(); return id; }
+function updHistory(id,state){ const all=getHist(); const i=all.findIndex(x=>x.id===id); if(i>=0){all[i].state=state;localStorage.setItem(histKey,JSON.stringify(all));renderHistory();} }
+function renderHistory(){
+  const mine=getHist().filter(e=>wallet&&e.wallet&&e.wallet.toLowerCase()===wallet.toLowerCase());
+  $("historyPanel").classList.toggle("hidden",mine.length===0);
+  const cls=(s)=>["SUCCESS"].includes(s)?"ok":["FAILED","REFUNDED","INCOMPLETE_DEPOSIT"].includes(s)?"bad":"run";
+  $("historyList").innerHTML=mine.slice(0,8).map(e=>`<div class="history-item"><span>${e.sum}${e.txHash?` <a class="link" target="_blank" href="${e.rail==="A"?"https://layerzeroscan.com/tx/"+e.txHash:(e.exp||CHAINS.base.explorer)+"/tx/"+e.txHash}">tx</a>`:""}</span><span class="hstate ${cls(e.state)}">${e.state}</span></div>`).join("");
+}
+
+// ---------- availability (live, from 1-Click) ----------
+async function loadAvailability(){
+  try{
+    const tokens=await getOneClickTokens();
+    const a={};
+    for(const c of SCOPE_CHAINS){ a[c]={}; for(const t of CHAIN_TOKENS[c]){ a[c][t]=(t==="AP3X"||c==="ap3x")?true:!!resolveAsset(tokens,c,t); } }
+    S.avail=a; renderSelects();
+  }catch(_){/* stay optimistic; quotes re-validate */}
+}
+
+// ---------- prompt fill ----------
+async function fillFromPrompt(){
+  const raw=$("prompt").value.trim(); if(!raw) return;
+  $("fillBtn").disabled=true; $("fillBtn").textContent="Reading…";
+  $("promptHint").classList.add("hidden");
+  try{
+    const key=$("aiKey").value.trim();
+    let i;
+    try{ i = key ? await claudeParse(raw,key) : heuristicParse(raw); }
+    catch(_){ i = heuristicParse(raw); }
+    if(i.fromChain&&ORIGINS.includes(i.fromChain)) S.from=i.fromChain;
+    if(i.tokenIn){const t=TOKEN_WORDS[i.tokenIn.toLowerCase()]||i.tokenIn.toUpperCase(); if(CHAIN_TOKENS[S.from].includes(t))S.tokenIn=t;}
+    if(i.toChain&&SCOPE_CHAINS.includes(i.toChain)&&i.toChain!==S.from) S.to=i.toChain;
+    if(i.tokenOut){const t=TOKEN_WORDS[i.tokenOut.toLowerCase()]||i.tokenOut.toUpperCase(); if(CHAIN_TOKENS[S.to].includes(t))S.tokenOut=t;}
+    if(i.amount&&/^\d+(\.\d+)?$/.test(i.amount)) $("amount").value=i.amount;
+    if(i.recipient) $("recipient").value=i.recipient;
+    clearQuote(); renderSelects();
+    const missing=[]; if(!$("amount").value)missing.push("amount"); if(!CHAINS[S.to].evm&&!$("recipient").value.trim())missing.push(CHAINS[S.to].label+" recipient");
+    if(missing.length){$("promptHint").textContent="Still needed: "+missing.join(", ");$("promptHint").classList.remove("hidden");}
+  } finally { $("fillBtn").disabled=false; $("fillBtn").textContent="Fill"; }
+}
+
+// ---------- wire up ----------
+$("connectBtn").onclick=()=>wallet?disconnectWallet():connectWallet();
+$("fromChain").onchange=(e)=>{S.from=e.target.value;clearQuote();renderSelects();};
+$("tokenIn").onchange=(e)=>{S.tokenIn=e.target.value;clearQuote();renderSelects();};
+$("toChain").onchange=(e)=>{S.to=e.target.value;clearQuote();renderSelects();};
+$("tokenOut").onchange=(e)=>{S.tokenOut=e.target.value;clearQuote();renderQuoteIfAny();};
+function renderQuoteIfAny(){ renderSelects(); }
+$("amount").oninput=()=>{clearQuote();};
+$("recipient").oninput=()=>{clearQuote();renderSelects();};
+$("cta").onclick=()=>{ if(!S.quote) getQuote(); else if(wallet) confirm_(); else connectWallet(); };
+$("fillBtn").onclick=fillFromPrompt;
+$("prompt").addEventListener("keydown",(e)=>{if(e.key==="Enter")fillFromPrompt();});
+$("aiKey").value=localStorage.getItem("skyline.aiKey")||"";
+$("aiKey").addEventListener("change",()=>localStorage.setItem("skyline.aiKey",$("aiKey").value.trim()));
+if(!window.ethereum) $("noWalletBanner").classList.remove("hidden");
+
+renderSelects();
+loadAvailability();
+renderHistory();
+</script>
+</body>
+</html>
