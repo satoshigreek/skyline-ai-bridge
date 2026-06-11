@@ -70,11 +70,21 @@ export async function POST(req: Request) {
   }
 
   try {
+    const from = intent.fromChain!;
     const tokens = await getTokens();
-    const tokenInInfo = resolveAsset(tokens, "base", intent.tokenIn!);
+    const tokenInInfo = resolveAsset(tokens, from, intent.tokenIn!);
     const tokenOutInfo = resolveAsset(tokens, to, effectiveTokenOut(intent)!);
     if (!tokenInInfo || !tokenOutInfo) {
       return NextResponse.json({ error: "Token route no longer available." }, { status: 422 });
+    }
+    // A signable transfer needs either the chain's native coin or an ERC-20
+    // contract address — refuse anything else before quoting for real.
+    const NATIVE: Record<string, string> = { base: "ETH", bsc: "BNB" };
+    if (tokenInInfo.symbol !== NATIVE[from] && !tokenInInfo.contractAddress) {
+      return NextResponse.json(
+        { error: `Can't build a wallet transfer for ${tokenInInfo.symbol} on ${CHAINS[from].label} — no token contract published. Nothing was sent.` },
+        { status: 422 },
+      );
     }
 
     const amountSmallest = toSmallestUnits(intent.amount!, tokenInInfo.decimals).toString();

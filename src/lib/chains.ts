@@ -95,6 +95,32 @@ export const RAIL_A_DECIMALS: Record<RailAToken, number> = {
 };
 
 // ---------------------------------------------------------------------------
+// Product scope — the chains and tokens this app exposes. The parser still
+// understands the wider world; the router and UI enforce this scope.
+// ---------------------------------------------------------------------------
+
+export const SCOPE_CHAINS: ChainKey[] = ["base", "bsc", "ap3x", "cardano"];
+// Chains the user can SEND FROM (EVM, signable with the connected wallet).
+export const SCOPE_ORIGINS: ChainKey[] = ["base", "bsc"];
+export const SCOPE_TOKENS = ["AP3X", "USDC", "USDT", "ADA", "ETH", "BTC"] as const;
+export type ScopeToken = (typeof SCOPE_TOKENS)[number];
+
+// What's actually tradable per chain (verified against the live 1-Click list
+// + the bAP3X OFT). BTC on Base = cbBTC; AP3X on Base = bAP3X (Rail A).
+export const CHAIN_TOKENS: Record<string, ScopeToken[]> = {
+  base: ["AP3X", "USDC", "ETH", "BTC"],
+  bsc: ["USDC", "USDT"],
+  ap3x: ["AP3X"],
+  cardano: ["ADA"],
+};
+
+// EVM chain ids for wallet transfers per origin.
+export const EVM_CHAIN_IDS: Partial<Record<ChainKey, number>> = {
+  base: 8453,
+  bsc: 56,
+};
+
+// ---------------------------------------------------------------------------
 // Safety
 // ---------------------------------------------------------------------------
 

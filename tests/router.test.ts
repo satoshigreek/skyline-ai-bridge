@@ -10,7 +10,7 @@ function intent(overrides: Partial<Intent>): Intent {
     amount: "100",
     amountSide: "in",
     fromChain: "base",
-    toChain: "near",
+    toChain: "bsc",
     recipient: null,
     confidence: 1,
     clarifyingQuestion: null,
@@ -18,64 +18,74 @@ function intent(overrides: Partial<Intent>): Intent {
   };
 }
 
-describe("deterministic router", () => {
-  it("routes Apex Fusion destinations to Rail A", () => {
-    const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "AP3X" }));
-    expect(d).toMatchObject({ ok: true, rail: "A" });
+describe("deterministic router (scope: Base/BNB/Apex Fusion/Cardano)", () => {
+  it("routes AP3X to Apex Fusion over Rail A", () => {
+    expect(routeIntent(intent({ toChain: "ap3x", tokenIn: "AP3X" }))).toMatchObject({
+      ok: true,
+      rail: "A",
+    });
+    expect(routeIntent(intent({ toChain: "ap3x", tokenIn: "bAP3X" }))).toMatchObject({
+      ok: true,
+      rail: "A",
+    });
   });
 
-  it("rejects USDC to Apex Fusion (no OFT route — Rail A is AP3X/bAP3X only)", () => {
+  it("rejects USDC to Apex Fusion (no OFT route)", () => {
     const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "USDC" }));
     expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/AP3X, bAP3X/);
+    if (!d.ok) expect(d.error).toMatch(/AP3X/);
   });
 
-  it("routes bAP3X to Apex Fusion over Rail A", () => {
-    const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "bAP3X" }));
-    expect(d).toMatchObject({ ok: true, rail: "A" });
+  it("routes in-scope cross-chain pairs to Rail B", () => {
+    expect(routeIntent(intent({ toChain: "bsc" }))).toMatchObject({ ok: true, rail: "B" });
+    expect(
+      routeIntent(intent({ toChain: "cardano", tokenOut: "ADA", action: "swap" })),
+    ).toMatchObject({ ok: true, rail: "B" });
+    expect(
+      routeIntent(intent({ fromChain: "bsc", tokenIn: "USDT", toChain: "base", tokenOut: "USDC", action: "swap" })),
+    ).toMatchObject({ ok: true, rail: "B" });
   });
 
-  it("routes everything else cross-chain to Rail B", () => {
-    expect(routeIntent(intent({ toChain: "near" }))).toMatchObject({ ok: true, rail: "B" });
-    expect(routeIntent(intent({ toChain: "bitcoin", tokenOut: "BTC", action: "swap" }))).toMatchObject({
-      ok: true,
-      rail: "B",
-    });
-    expect(routeIntent(intent({ toChain: "cardano" }))).toMatchObject({ ok: true, rail: "B" });
+  it("rejects out-of-scope destinations (NEAR, Solana, …)", () => {
+    for (const to of ["near", "solana", "arbitrum", "bitcoin"] as const) {
+      const d = routeIntent(intent({ toChain: to }));
+      expect(d.ok).toBe(false);
+      if (!d.ok) expect(d.error).toMatch(/Base, BNB Chain, Apex Fusion|isn't supported/);
+    }
   });
 
-  it("rejects non-Base origins in v1", () => {
+  it("rejects Cardano as a source (no Cardano wallet wired)", () => {
+    const d = routeIntent(intent({ fromChain: "cardano", tokenIn: "ADA", toChain: "base", tokenOut: "USDC", action: "swap" }));
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.error).toMatch(/Cardano wallet/i);
+  });
+
+  it("rejects out-of-scope origins", () => {
     const d = routeIntent(intent({ fromChain: "arbitrum" }));
     expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/Base only/i);
+    if (!d.ok) expect(d.error).toMatch(/Base or BNB/i);
+  });
+
+  it("rejects tokens not present on the source chain", () => {
+    const d = routeIntent(intent({ fromChain: "bsc", tokenIn: "ETH", toChain: "base" }));
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.error).toMatch(/isn't available on BNB Chain/);
+  });
+
+  it("keeps AP3X off Rail B routes", () => {
+    const d = routeIntent(intent({ tokenIn: "AP3X", toChain: "bsc" }));
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.error).toMatch(/Base ↔ Apex Fusion/);
   });
 
   it("rejects same-chain transfers", () => {
-    const d = routeIntent(intent({ toChain: "base" }));
+    const d = routeIntent(intent({ fromChain: "base", toChain: "base" }));
     expect(d.ok).toBe(false);
     if (!d.ok) expect(d.error).toMatch(/same-chain/i);
   });
 
-  it("rejects unsupported tokens on the Apex Fusion route", () => {
-    const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "DOGE" }));
-    expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/isn't supported/i);
-  });
-
-  it("rejects swaps on Rail A (bridge-only route)", () => {
-    const d = routeIntent(
-      intent({ toChain: "ap3x", tokenIn: "USDC", tokenOut: "AP3X", action: "swap" }),
-    );
-    expect(d.ok).toBe(false);
-  });
-
-  it("rejects zero amounts", () => {
-    const d = routeIntent(intent({ amount: "0" }));
-    expect(d.ok).toBe(false);
-  });
-
-  it("refuses incomplete intents outright", () => {
-    const d = routeIntent(intent({ amount: null }));
-    expect(d.ok).toBe(false);
+  it("rejects zero amounts and incomplete intents", () => {
+    expect(routeIntent(intent({ amount: "0" })).ok).toBe(false);
+    expect(routeIntent(intent({ amount: null })).ok).toBe(false);
   });
 });

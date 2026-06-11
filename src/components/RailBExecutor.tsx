@@ -70,6 +70,7 @@ export function RailBExecutor({
       let hash: `0x${string}`;
       if (plan.transfer.tokenAddress) {
         hash = await writeContractAsync({
+          chainId: plan.chainId,
           address: plan.transfer.tokenAddress,
           abi: ERC20_ABI,
           functionName: "transfer",
@@ -77,6 +78,7 @@ export function RailBExecutor({
         });
       } else {
         hash = await sendTransactionAsync({
+          chainId: plan.chainId,
           to: plan.depositAddress as Address,
           value: BigInt(plan.transfer.amountSmallest),
         });
@@ -174,8 +176,13 @@ export function RailBExecutor({
           <p className="notes">{STATE_EXPLAIN[chainState] ?? "Working…"}</p>
           {txHash && (
             <p className="notes">
-              Your Base transfer:{" "}
-              <a className="link" href={`https://basescan.org/tx/${txHash}`} target="_blank" rel="noreferrer">
+              Your transfer:{" "}
+              <a
+                className="link"
+                href={`${plan.chainId === 56 ? "https://bscscan.com" : "https://basescan.org"}/tx/${txHash}`}
+                target="_blank"
+                rel="noreferrer"
+              >
                 {txHash.slice(0, 10)}…{txHash.slice(-8)}
               </a>
             </p>

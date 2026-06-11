@@ -89,16 +89,12 @@ export async function POST(req: Request) {
       );
     }
 
+    const from = intent.fromChain!;
     const tokens = await getTokens();
-    const tokenInInfo = resolveAsset(tokens, "base", intent.tokenIn!);
+    const tokenInInfo = resolveAsset(tokens, from, intent.tokenIn!);
     if (!tokenInInfo) {
-      const available = [
-        ...new Set(tokens.filter((t) => t.blockchain === "base").map((t) => t.symbol)),
-      ]
-        .slice(0, 10)
-        .join(", ");
       return NextResponse.json(
-        { error: `${intent.tokenIn} isn't available on Base via NEAR Intents. Available: ${available}.` },
+        { error: `${intent.tokenIn} isn't available on ${CHAINS[from].label} via NEAR Intents.` },
         { status: 422 },
       );
     }

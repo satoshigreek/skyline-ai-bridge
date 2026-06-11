@@ -1,4 +1,4 @@
-import { CHAINS } from "./chains";
+import { CHAINS, EVM_CHAIN_IDS } from "./chains";
 import { effectiveTokenOut, type Intent } from "./intent";
 import { fromSmallestUnits } from "./units";
 import type { RailAPlan } from "./oft";
@@ -29,9 +29,11 @@ export type RailBTransferPlan = {
   kind: "railB";
   depositAddress: string;
   deadline: string | null;
-  // What the user actually signs: a plain transfer on Base.
+  // EVM chain id the transfer is signed on (8453 Base, 56 BNB).
+  chainId: number;
+  // What the user actually signs: a plain transfer on the origin chain.
   transfer: {
-    tokenAddress: `0x${string}` | null; // null => native ETH send
+    tokenAddress: `0x${string}` | null; // null => native coin send
     amountSmallest: string;
     decimals: number;
     symbol: string;
@@ -125,6 +127,7 @@ export function buildRailBCard(
         kind: "railB",
         depositAddress: quote.depositAddress,
         deadline: quote.deadline ?? null,
+        chainId: EVM_CHAIN_IDS[intent.fromChain!] ?? 8453,
         transfer: {
           tokenAddress: (tokenIn.contractAddress as `0x${string}` | undefined) ?? null,
           amountSmallest: quote.amountIn,

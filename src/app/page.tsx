@@ -4,293 +4,104 @@ import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import type { Address } from "viem";
-import type { Intent } from "@/lib/intent";
 import type { CardModel, RailBTransferPlan } from "@/lib/build";
 import type { SerializedRailAPlan } from "@/lib/oft";
-import { ManualForm } from "@/components/ManualForm";
-import { ReviewCard } from "@/components/ReviewCard";
+import { TransferCard, type Prefill } from "@/components/TransferCard";
 import { RailAExecutor } from "@/components/RailAExecutor";
 import { RailBExecutor } from "@/components/RailBExecutor";
 import { HistoryList } from "@/components/HistoryList";
 
-type Exchange = { question: string; answer: string };
-
 type Stage =
-  | { k: "input" }
-  | { k: "parsing" }
-  | { k: "clarify"; prompt: string; intent: Intent; exchanges: Exchange[] }
-  | { k: "quoting" }
-  | { k: "needRecipient"; intent: Intent; engine: string | null; message: string }
-  | {
-      k: "review";
-      intent: Intent;
-      rail: "A" | "B";
-      card: CardModel;
-      planA: SerializedRailAPlan | null;
-      engine: string | null;
-      busy: boolean;
-    }
+  | { k: "card" }
   | { k: "executeA"; card: CardModel; planA: SerializedRailAPlan }
   | { k: "executeB"; card: CardModel; planB: RailBTransferPlan }
-  | { k: "doneB"; state: string; card: CardModel }
-  | { k: "error"; message: string };
+  | { k: "doneB"; state: string; card: CardModel };
 
-const EXAMPLES = [
-  "Move 250 USDC from Base to Apex Fusion",
-  "Swap 0.1 ETH on Base for NEAR",
-  "Send 50 USDC to alice.near",
-  "Bridge 25 AP3X to Apex Fusion",
-];
+const EXAMPLE = "e.g. bridge 25 AP3X to Apex Fusion · swap 50 USDC for ADA";
 
 export default function Home() {
   const { address } = useAccount();
-  const [mode, setMode] = useState<"prompt" | "manual">("prompt");
   const [prompt, setPrompt] = useState("");
-  const [clarifyAnswer, setClarifyAnswer] = useState("");
-  const [recipientInput, setRecipientInput] = useState("");
-  const [stage, setStage] = useState<Stage>({ k: "input" });
+  const [parsing, setParsing] = useState(false);
+  const [hint, setHint] = useState("");
+  const [prefill, setPrefill] = useState<Prefill | null>(null);
+  const [stage, setStage] = useState<Stage>({ k: "card" });
+  const [error, setError] = useState("");
 
-  const reset = () => {
-    setStage({ k: "input" });
-    setClarifyAnswer("");
-    setRecipientInput("");
-  };
-
-  async function parsePrompt(text: string, exchanges: Exchange[]) {
-    setStage({ k: "parsing" });
+  async function parsePrompt() {
+    if (!prompt.trim()) return;
+    setParsing(true);
+    setHint("");
+    setError("");
     try {
       const res = await fetch("/api/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, exchanges }),
+        body: JSON.stringify({ prompt: prompt.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't read that.");
-      const intent: Intent = data.intent;
-      const engine: string = data.engine;
-      if (intent.clarifyingQuestion) {
-        if (exchanges.length >= 2) {
-          setStage({
-            k: "error",
-            message:
-              "I still couldn't pin that down after two questions — try the manual form below, it always works.",
-          });
-          setMode("manual");
-          return;
-        }
-        setStage({ k: "clarify", prompt: text, intent, exchanges });
-        return;
-      }
-      await quoteIntent(intent, engine);
+      const i = data.intent;
+      if (i.clarifyingQuestion) setHint(i.clarifyingQuestion);
+      setPrefill({
+        fromChain: i.fromChain ?? undefined,
+        toChain: i.toChain ?? undefined,
+        tokenIn: i.tokenIn ?? undefined,
+        tokenOut: i.tokenOut ?? undefined,
+        amount: i.amount ?? undefined,
+        recipient: i.recipient ?? undefined,
+      });
+      setStage({ k: "card" });
     } catch (e) {
-      setStage({ k: "error", message: e instanceof Error ? e.message : "Parse failed." });
-    }
-  }
-
-  async function quoteIntent(intent: Intent, engine: string | null) {
-    setStage({ k: "quoting" });
-    try {
-      const res = await fetch("/api/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent, sender: address }),
-      });
-      const data = await res.json();
-      if (data.needsRecipient) {
-        setStage({ k: "needRecipient", intent, engine, message: data.message });
-        return;
-      }
-      if (!res.ok) throw new Error(data.error || "Quote failed.");
-      setStage({
-        k: "review",
-        intent,
-        rail: data.rail,
-        card: data.card,
-        planA: data.planA ?? null,
-        engine,
-        busy: false,
-      });
-    } catch (e) {
-      setStage({ k: "error", message: e instanceof Error ? e.message : "Quote failed." });
-    }
-  }
-
-  async function confirmReview(confirmedAmount?: string) {
-    if (stage.k !== "review" || !address) return;
-    if (stage.rail === "A" && stage.planA) {
-      setStage({ k: "executeA", card: stage.card, planA: stage.planA });
-      return;
-    }
-    // Rail B: the real quote (deposit address) is created only now.
-    setStage({ ...stage, busy: true });
-    try {
-      const res = await fetch("/api/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ intent: stage.intent, sender: address, confirmedAmount }),
-      });
-      const data = await res.json();
-      if (res.status === 403 && data.capExceeded) {
-        setStage({ ...stage, busy: false });
-        setStage({ k: "error", message: data.message });
-        return;
-      }
-      if (!res.ok) throw new Error(data.error || "Couldn't prepare the transfer.");
-      setStage({ k: "executeB", card: data.card, planB: data.plan });
-    } catch (e) {
-      setStage({
-        k: "error",
-        message: e instanceof Error ? e.message : "Couldn't prepare the transfer.",
-      });
+      setHint(e instanceof Error ? e.message : "Couldn't read that.");
+    } finally {
+      setParsing(false);
     }
   }
 
   return (
     <div className="wrap">
       <div className="topbar">
-        <div className="brand">
-          <div className="logo">SB</div>
-          <div>
-            <h1>Skyline AI Bridge</h1>
-            <p>Plain-English bridging on Base — LayerZero + NEAR Intents</p>
+        <div>
+          <div className="brand-mark">
+            Skyline <span>AI Bridge</span>
           </div>
+          <div className="brand-status">LayerZero + NEAR Intents · Live</div>
         </div>
         <ConnectButton showBalance={false} chainStatus="icon" />
       </div>
 
-      <div className="card">
-        <h2>What do you want to do?</h2>
-        <div className="mode-toggle">
-          <button className={mode === "prompt" ? "active" : ""} onClick={() => setMode("prompt")}>
-            Plain English
-          </button>
-          <button className={mode === "manual" ? "active" : ""} onClick={() => setMode("manual")}>
-            Manual form
+      <div className="prompt-bar">
+        <span className="eyebrow">Or just say it</span>
+        <div className="prompt-row">
+          <input
+            className="prompt"
+            placeholder={EXAMPLE}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && prompt.trim()) void parsePrompt();
+            }}
+          />
+          <button className="btn" disabled={parsing || !prompt.trim()} onClick={parsePrompt}>
+            {parsing ? "Reading…" : "Fill"}
           </button>
         </div>
-
-        {mode === "prompt" ? (
-          <>
-            <div className="prompt-row">
-              <textarea
-                className="prompt"
-                placeholder="e.g. Move 250 USDC from Base to Apex Fusion"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim()) {
-                    parsePrompt(prompt.trim(), []);
-                  }
-                }}
-              />
-              <button
-                className="btn"
-                disabled={stage.k === "parsing" || stage.k === "quoting" || !prompt.trim()}
-                onClick={() => parsePrompt(prompt.trim(), [])}
-              >
-                {stage.k === "parsing" ? "Reading…" : stage.k === "quoting" ? "Quoting…" : "Go"}
-              </button>
-            </div>
-            <div className="examples">
-              {EXAMPLES.map((ex) => (
-                <span key={ex} className="chip" onClick={() => setPrompt(ex)}>
-                  {ex}
-                </span>
-              ))}
-            </div>
-          </>
-        ) : (
-          <ManualForm onSubmit={(intent) => quoteIntent(intent, null)} />
-        )}
-
-        {stage.k === "clarify" && (
-          <div className="clarify-thread">
-            <div className="bubble user">{stage.prompt}</div>
-            {stage.exchanges.map((e, i) => (
-              <ClarifyPair key={i} q={e.question} a={e.answer} />
-            ))}
-            <div className="bubble ai">{stage.intent.clarifyingQuestion}</div>
-            <div className="clarify-input">
-              <input
-                className="field"
-                autoFocus
-                placeholder="Your answer…"
-                value={clarifyAnswer}
-                onChange={(e) => setClarifyAnswer(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && clarifyAnswer.trim()) {
-                    const next = [
-                      ...stage.exchanges,
-                      { question: stage.intent.clarifyingQuestion!, answer: clarifyAnswer.trim() },
-                    ];
-                    setClarifyAnswer("");
-                    parsePrompt(stage.prompt, next);
-                  }
-                }}
-              />
-              <button
-                className="btn small"
-                disabled={!clarifyAnswer.trim()}
-                onClick={() => {
-                  const next = [
-                    ...stage.exchanges,
-                    { question: stage.intent.clarifyingQuestion!, answer: clarifyAnswer.trim() },
-                  ];
-                  setClarifyAnswer("");
-                  parsePrompt(stage.prompt, next);
-                }}
-              >
-                Answer
-              </button>
-            </div>
-          </div>
-        )}
+        {hint && <div className="prompt-hint">{hint}</div>}
       </div>
 
-      {stage.k === "quoting" && (
-        <div className="card">
-          <h2>Getting your quote</h2>
-          <div className="skeleton" style={{ width: "60%" }} />
-          <div className="skeleton" style={{ width: "85%" }} />
-          <div className="skeleton" style={{ width: "40%" }} />
-        </div>
-      )}
+      <TransferCard
+        wallet={address as Address | undefined}
+        prefill={prefill}
+        onExecuteA={(card, planA) => { setError(""); setStage({ k: "executeA", card, planA }); }}
+        onExecuteB={(card, planB) => { setError(""); setStage({ k: "executeB", card, planB }); }}
+        onBusyError={(msg) => setError(msg)}
+      />
 
-      {stage.k === "needRecipient" && (
-        <div className="card">
-          <h2>One more thing</h2>
-          <p className="summary-line">{stage.message}</p>
-          <div className="clarify-input">
-            <input
-              className="field"
-              autoFocus
-              placeholder="Destination address"
-              value={recipientInput}
-              onChange={(e) => setRecipientInput(e.target.value)}
-            />
-            <button
-              className="btn small"
-              disabled={!recipientInput.trim()}
-              onClick={() =>
-                quoteIntent({ ...stage.intent, recipient: recipientInput.trim() }, stage.engine)
-              }
-            >
-              Continue
-            </button>
-          </div>
+      {error && (
+        <div className="panel">
+          <div className="err">⛔ {error}</div>
         </div>
-      )}
-
-      {stage.k === "review" && (
-        <ReviewCard
-          card={stage.card}
-          confidence={stage.engine ? stage.intent.confidence : null}
-          engine={stage.engine}
-          connectedAddress={address}
-          busy={stage.busy}
-          onConfirm={confirmReview}
-          onDiscard={reset}
-        />
       )}
 
       {stage.k === "executeA" && address && (
@@ -299,7 +110,7 @@ export default function Home() {
           card={stage.card}
           wallet={address as Address}
           onDone={() => {}}
-          onError={(message) => setStage({ k: "error", message })}
+          onError={(message) => { setError(message); setStage({ k: "card" }); }}
         />
       )}
 
@@ -313,7 +124,7 @@ export default function Home() {
       )}
 
       {stage.k === "doneB" && (
-        <div className="card">
+        <div className="panel">
           <h2>Result</h2>
           <div className="status-line">
             <span className={`dot ${stage.state === "SUCCESS" ? "done" : "bad"}`} />
@@ -322,31 +133,20 @@ export default function Home() {
           <p className="notes">
             {stage.state === "SUCCESS"
               ? `Delivered: ${stage.card.estOut} ${stage.card.tokenOut} (est.) to ${stage.card.recipient} on ${stage.card.toChain}.`
-              : "The swap didn't complete — refunds go automatically to your wallet on Base."}
+              : "The swap didn't complete — refunds go automatically to your wallet."}
           </p>
           <div className="actions">
-            <button className="btn secondary" onClick={() => { reset(); setPrompt(""); }}>
+            <button className="btn secondary" onClick={() => setStage({ k: "card" })}>
               New transfer
             </button>
           </div>
         </div>
       )}
 
-      {stage.k === "error" && (
-        <div className="card">
-          <div className="err">⛔ {stage.message}</div>
-          <div className="actions">
-            <button className="btn secondary" onClick={reset}>
-              Start over
-            </button>
-          </div>
-        </div>
-      )}
-
-      {(stage.k === "executeA" || stage.k === "doneB") && (
-        <div className="actions" style={{ marginTop: 0, marginBottom: 18 }}>
-          <button className="btn secondary" onClick={() => { reset(); setPrompt(""); }}>
-            New transfer
+      {(stage.k === "executeA" || stage.k === "executeB") && (
+        <div className="actions">
+          <button className="btn secondary small" onClick={() => setStage({ k: "card" })}>
+            Back to transfer
           </button>
         </div>
       )}
@@ -354,20 +154,10 @@ export default function Home() {
       <HistoryList wallet={address} />
 
       <p className="footnote">
-        The AI only <i>proposes</i> — you review one card and sign in your own wallet.
+        AP3X · USDC · USDT · ADA · ETH · BTC — Base · BNB · Apex Fusion · Cardano
         <br />
-        Apex Fusion rides the bAP3X LayerZero OFT · everything else rides NEAR Intents · failures
-        refund automatically.
+        The AI only proposes · you sign in your own wallet · failures refund automatically
       </p>
     </div>
-  );
-}
-
-function ClarifyPair({ q, a }: { q: string; a: string }) {
-  return (
-    <>
-      <div className="bubble ai">{q}</div>
-      <div className="bubble user">{a}</div>
-    </>
   );
 }
