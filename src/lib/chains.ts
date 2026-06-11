@@ -55,59 +55,44 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
 };
 
 // ---------------------------------------------------------------------------
-// Rail A (Skyline / LayerZero OFT) wiring
+// Rail A (LayerZero OFT) wiring — live by default with on-chain-verified values
 // ---------------------------------------------------------------------------
 
-export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
-
-// Canonical Circle USDC on Base — fixed, well-known.
+// Canonical Circle USDC on Base (Rail B transfers) — fixed, well-known.
 export const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as `0x${string}`;
 
 // LayerZero v2 endpoint id for Base mainnet.
 export const LZ_EID_BASE = 30184;
 
-function envAddress(v: string | undefined): `0x${string}` | null {
-  if (!v || !/^0x[a-fA-F0-9]{40}$/.test(v) || v === ZERO_ADDRESS) return null;
-  return v as `0x${string}`;
+// bAP3X native OFT on Base. Verified on-chain 2026-06-11: name/symbol bAP3X,
+// 18 decimals, oftVersion() = OFT v2, canonical LayerZero EndpointV2.
+// https://basescan.org/token/0x9208d82f121806a34a39bb90733b4c5c54f3993e
+const DEFAULT_BAP3X_OFT = "0x9208d82f121806a34a39bb90733b4c5c54f3993e";
+// Apex Fusion endpoint id, read from the OFT's own PeerSet events (the other
+// peer, 30102, is BNB Chain). quoteSend() against it returns live fees.
+const DEFAULT_AP3X_EID = 30384;
+
+function envAddress(v: string | undefined, fallback: string): `0x${string}` {
+  if (v && /^0x[a-fA-F0-9]{40}$/.test(v)) return v as `0x${string}`;
+  return fallback as `0x${string}`;
 }
 
-export const BAP3X_OFT_BASE = envAddress(process.env.NEXT_PUBLIC_BAP3X_OFT_BASE);
-export const USDC_OFT_ADAPTER_BASE = envAddress(
-  process.env.NEXT_PUBLIC_USDC_OFT_ADAPTER_BASE,
+export const BAP3X_OFT_BASE = envAddress(
+  process.env.NEXT_PUBLIC_BAP3X_OFT_BASE,
+  DEFAULT_BAP3X_OFT,
 );
-export const AP3X_LZ_EID = Number(process.env.NEXT_PUBLIC_AP3X_LZ_EID ?? 0) || null;
+export const AP3X_LZ_EID =
+  Number(process.env.NEXT_PUBLIC_AP3X_LZ_EID ?? 0) || DEFAULT_AP3X_EID;
 
-// Rail A runs in mock simulation unless every contract value is supplied and
-// mock mode isn't forced on. Rail B is always live (no contracts needed).
-export function railAMocked(): boolean {
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === "true") return true;
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === "false") {
-    // Explicit live request still requires real config.
-    return !(BAP3X_OFT_BASE && AP3X_LZ_EID);
-  }
-  return !(BAP3X_OFT_BASE && AP3X_LZ_EID);
-}
-
-export type RailAToken = "AP3X" | "bAP3X" | "USDC";
-export const RAIL_A_TOKENS: RailAToken[] = ["AP3X", "bAP3X", "USDC"];
+// USDC has no OFT route to Apex Fusion (no adapter deployed) — it bridges
+// everywhere else via Rail B. Rail A is the bAP3X/AP3X LayerZero OFT only.
+export type RailAToken = "AP3X" | "bAP3X";
+export const RAIL_A_TOKENS: RailAToken[] = ["AP3X", "bAP3X"];
 
 export const RAIL_A_DECIMALS: Record<RailAToken, number> = {
   AP3X: 18,
   bAP3X: 18,
-  USDC: 6,
 };
-
-// Per-token Base-side route: which contract send()/quoteSend() are called on,
-// and which ERC-20 must be approved to it first (OFT Adapter pattern).
-export function railARoute(token: RailAToken): {
-  oftAddress: `0x${string}` | null;
-  approveToken: `0x${string}` | null;
-} {
-  if (token === "USDC") {
-    return { oftAddress: USDC_OFT_ADAPTER_BASE, approveToken: USDC_BASE };
-  }
-  return { oftAddress: BAP3X_OFT_BASE, approveToken: null };
-}
 
 // ---------------------------------------------------------------------------
 // Safety

@@ -54,7 +54,7 @@ export function routeIntent(intent: Intent): RouteDecision {
         error: `The Apex Fusion route bridges a token to itself (${tokenIn} stays ${tokenIn}) — it can't swap ${tokenIn} into ${tokenOut}.`,
       };
     }
-    return { ok: true, rail: "A", railLabel: "Skyline Bridge (LayerZero OFT)" };
+    return { ok: true, rail: "A", railLabel: "LayerZero OFT" };
   }
 
   // Rail B: every other cross-chain pair rides NEAR Intents.

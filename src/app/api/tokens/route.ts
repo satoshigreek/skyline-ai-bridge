@@ -24,8 +24,8 @@ export async function GET(req: Request) {
         ),
       ].sort();
     }
-    // Rail A destination tokens.
-    byChain["ap3x"] = ["AP3X", "bAP3X", "USDC"];
+    // Rail A destination tokens (the bAP3X LayerZero OFT bridges these only).
+    byChain["ap3x"] = ["AP3X", "bAP3X"];
     return NextResponse.json({ byChain });
   } catch (err) {
     return NextResponse.json(

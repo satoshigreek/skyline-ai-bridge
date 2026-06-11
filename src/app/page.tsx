@@ -4,7 +4,6 @@ import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import type { Address } from "viem";
-import { railAMocked } from "@/lib/chains";
 import type { Intent } from "@/lib/intent";
 import type { CardModel, RailBTransferPlan } from "@/lib/build";
 import type { SerializedRailAPlan } from "@/lib/oft";
@@ -153,21 +152,11 @@ export default function Home() {
           <div className="logo">SB</div>
           <div>
             <h1>Skyline AI Bridge</h1>
-            <p>Plain-English bridging on Base — Skyline OFT + NEAR Intents</p>
+            <p>Plain-English bridging on Base — LayerZero + NEAR Intents</p>
           </div>
         </div>
         <ConnectButton showBalance={false} chainStatus="icon" />
       </div>
-
-      {railAMocked() && (
-        <div className="banner warn">
-          <span>⚠️</span>
-          <span>
-            <b>Apex Fusion route is simulated</b> until Skyline contract addresses are configured.
-            All other destinations (NEAR Intents) are live.
-          </span>
-        </div>
-      )}
 
       <div className="card">
         <h2>What do you want to do?</h2>
@@ -367,7 +356,7 @@ export default function Home() {
       <p className="footnote">
         The AI only <i>proposes</i> — you review one card and sign in your own wallet.
         <br />
-        Apex Fusion rides Skyline (LayerZero OFT) · everything else rides NEAR Intents · failures
+        Apex Fusion rides the bAP3X LayerZero OFT · everything else rides NEAR Intents · failures
         refund automatically.
       </p>
     </div>

@@ -24,8 +24,14 @@ describe("deterministic router", () => {
     expect(d).toMatchObject({ ok: true, rail: "A" });
   });
 
-  it("routes USDC to Apex Fusion over Rail A (adapter token)", () => {
+  it("rejects USDC to Apex Fusion (no OFT route — Rail A is AP3X/bAP3X only)", () => {
     const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "USDC" }));
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.error).toMatch(/AP3X, bAP3X/);
+  });
+
+  it("routes bAP3X to Apex Fusion over Rail A", () => {
+    const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "bAP3X" }));
     expect(d).toMatchObject({ ok: true, rail: "A" });
   });
 

@@ -43,17 +43,21 @@ bypass the cap (documented limitation; the review card flags price-less tokens).
 - The optional `ONECLICK_JWT` lives server-side only and is attached in
   `src/lib/oneclick.ts`; the browser never sees it.
 
-## Rail A specifics (Skyline / LayerZero OFT)
+## Rail A specifics (bAP3X LayerZero OFT)
 
+- The app talks to the OFT contract directly — there is no Skyline (or any
+  third-party) API in the Rail A path.
 - bAP3X OFT address `0x9208d82f…3993e` was verified on-chain (name, symbol,
   decimals, `oftVersion()`, canonical LayerZero EndpointV2) — not taken from
   a web page alone.
 - The AP3X endpoint id (30384) was discovered from the contract's own `PeerSet`
-  events. **Confirm with Skyline before the first mainnet send** — a wrong EID
-  reverts at quote time (funds safe), but don't rely on that.
-- USDC rides an OFT **Adapter** (lock/unlock): the approve is scoped to the
-  exact bridged amount, never unlimited.
-- Rail A stays in visible mock simulation until all addresses are configured.
+  events, and `quoteSend` against it was verified live (returns a real fee, so
+  the peer route is configured and active).
+- bAP3X is a native OFT (mint/burn): a single `send` signature, no ERC-20
+  approval surface at all.
+- USDC deliberately has NO route to Apex Fusion: no adapter contract exists,
+  so the router rejects it with the supported alternatives rather than
+  simulating something that can't settle.
 
 ## Server hardening
 

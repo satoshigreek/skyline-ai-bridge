@@ -11,7 +11,7 @@ const DEST_CHAINS = Object.values(CHAINS).filter((c) => c.key !== "base");
 
 export function ManualForm({ onSubmit }: { onSubmit: (intent: Intent) => void }) {
   const [toChain, setToChain] = useState<ChainKey>("ap3x");
-  const [tokenIn, setTokenIn] = useState("USDC");
+  const [tokenIn, setTokenIn] = useState("AP3X");
   const [tokenOut, setTokenOut] = useState("");
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState("");

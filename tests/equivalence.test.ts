@@ -29,7 +29,7 @@ function intent(overrides: Partial<Intent>): Intent {
 
 describe("Rail A: card === calldata", () => {
   it("amount, min-received, and recipient in the card match the SendParam exactly", () => {
-    const i = intent({ tokenIn: "USDC", amount: "250.5" });
+    const i = intent({ tokenIn: "bAP3X", amount: "100.5" });
     const built = buildRailAPlan(i, WALLET);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
@@ -47,20 +47,21 @@ describe("Rail A: card === calldata", () => {
     );
   });
 
-  it("USDC uses 6 decimals end to end (the classic 10^12 bug)", () => {
-    const built = buildRailAPlan(intent({ tokenIn: "USDC", amount: "250" }), WALLET);
+  it("targets the live bAP3X OFT and the discovered AP3X endpoint id", () => {
+    const built = buildRailAPlan(intent({ tokenIn: "bAP3X", amount: "1" }), WALLET);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
-    expect(built.plan.sendParam.amountLD).toBe(250_000_000n); // NOT 250e18
-    expect(built.plan.approval).not.toBeNull(); // adapter token needs approve
+    expect(built.plan.oftAddress.toLowerCase()).toBe(
+      "0x9208d82f121806a34a39bb90733b4c5c54f3993e",
+    );
+    expect(built.plan.sendParam.dstEid).toBe(30384);
   });
 
-  it("AP3X uses 18 decimals and no approval (native OFT)", () => {
+  it("AP3X/bAP3X use 18 decimals end to end", () => {
     const built = buildRailAPlan(intent({ tokenIn: "AP3X", amount: "25" }), WALLET);
     expect(built.ok).toBe(true);
     if (!built.ok) return;
     expect(built.plan.sendParam.amountLD).toBe(25n * 10n ** 18n);
-    expect(built.plan.approval).toBeNull();
   });
 });
 

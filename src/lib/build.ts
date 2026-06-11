@@ -22,7 +22,6 @@ export type CardModel = {
   etaSeconds: number | null;
   recipient: string;
   usdIn: number | null;
-  mocked: boolean;
   notes: string[];
 };
 
@@ -52,7 +51,7 @@ export function buildRailACard(
   const minOut = fromSmallestUnits(plan.sendParam.minAmountLD, plan.decimals);
   return {
     rail: "A",
-    railLabel: "Skyline Bridge (LayerZero OFT)",
+    railLabel: "LayerZero OFT",
     fromChain: CHAINS[intent.fromChain!].label,
     toChain: CHAINS[intent.toChain!].label,
     tokenIn: plan.token,
@@ -63,17 +62,13 @@ export function buildRailACard(
     fees: [
       {
         label: "LayerZero fee",
-        value: `${fromSmallestUnits(nativeFeeWei, 18, 8)} ETH${plan.mocked ? " (simulated)" : ""}`,
+        value: `${fromSmallestUnits(nativeFeeWei, 18, 8)} ETH`,
       },
-      ...(plan.approval ? [{ label: "Extra signature", value: "ERC-20 approve (USDC adapter)" }] : []),
     ],
     etaSeconds: 120,
     recipient: plan.recipient,
-    usdIn: plan.token === "USDC" ? Number(amountIn) : null,
-    mocked: plan.mocked,
-    notes: plan.mocked
-      ? ["Mock simulation — no real funds move until contract addresses are configured."]
-      : [],
+    usdIn: null, // AP3X has no reliable USD oracle here; wallet shows exact calldata
+    notes: [],
   };
 }
 
@@ -122,7 +117,6 @@ export function buildRailBCard(
     etaSeconds: quote.timeEstimate ?? null,
     recipient,
     usdIn,
-    mocked: false,
     notes: ["Failed or under-filled swaps refund automatically to your wallet on Base."],
   };
 

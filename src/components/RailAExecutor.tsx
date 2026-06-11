@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useWriteContract, usePublicClient } from "wagmi";
+import { useWriteContract } from "wagmi";
 import type { Address } from "viem";
-import { ERC20_ABI, OFT_ABI } from "@/lib/oft";
+import { OFT_ABI } from "@/lib/oft";
 import type { SerializedRailAPlan } from "@/lib/oft";
 import type { CardModel } from "@/lib/build";
 import { newId, rememberRecipient, upsertHistory, type HistoryEntry } from "@/lib/history";
 
-// Rail A executor — approve (when the token rides an OFT Adapter) then send,
-// entirely in the user's wallet. Mock mode simulates both steps visibly.
+// Rail A executor — one wallet signature calling send() on the live bAP3X
+// LayerZero OFT. The SendParam is reconstructed verbatim from the quoted plan.
 
-type Step = "idle" | "approving" | "sending" | "done" | "error";
+type Step = "idle" | "sending" | "done" | "error";
 
 export function RailAExecutor({
   plan,
@@ -29,35 +29,20 @@ export function RailAExecutor({
   const [step, setStep] = useState<Step>("idle");
   const [txHash, setTxHash] = useState<string>("");
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient();
 
   async function run() {
     rememberRecipient(card.recipient);
-    const entryId = newId();
     const baseEntry: HistoryEntry = {
-      id: entryId,
+      id: newId(),
       wallet,
       createdAt: Date.now(),
       card,
       state: "signing",
     };
     upsertHistory(baseEntry);
+    setStep("sending");
 
     try {
-      if (plan.mocked) {
-        if (plan.approval) {
-          setStep("approving");
-          await new Promise((r) => setTimeout(r, 1100));
-        }
-        setStep("sending");
-        await new Promise((r) => setTimeout(r, 1400));
-        setTxHash("0xMOCK_SIMULATED_NO_FUNDS_MOVED");
-        upsertHistory({ ...baseEntry, state: "MOCKED", txHash: "0xMOCK" });
-        setStep("done");
-        onDone();
-        return;
-      }
-
       const sendParam = {
         dstEid: plan.sendParam.dstEid,
         to: plan.sendParam.to as `0x${string}`,
@@ -67,19 +52,6 @@ export function RailAExecutor({
         composeMsg: plan.sendParam.composeMsg as `0x${string}`,
         oftCmd: plan.sendParam.oftCmd as `0x${string}`,
       };
-
-      if (plan.approval) {
-        setStep("approving");
-        const approveHash = await writeContractAsync({
-          address: plan.approval.token as Address,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [plan.approval.spender as Address, BigInt(plan.approval.amountLD)],
-        });
-        if (publicClient) await publicClient.waitForTransactionReceipt({ hash: approveHash });
-      }
-
-      setStep("sending");
       const hash = await writeContractAsync({
         address: plan.oftAddress as Address,
         abi: OFT_ABI,
@@ -105,24 +77,17 @@ export function RailAExecutor({
   return (
     <div className="card">
       <h2>Sign &amp; bridge — {card.railLabel}</h2>
-      {plan.approval && (
-        <div className="status-line">
-          <span className={`dot ${step === "approving" ? "pending" : step === "idle" ? "idle" : "done"}`} />
-          Step 1 — approve {card.tokenIn} spend{plan.mocked ? " (simulated)" : ""}
-        </div>
-      )}
       <div className="status-line">
         <span className={`dot ${step === "sending" ? "pending" : step === "done" ? "done" : "idle"}`} />
-        Step {plan.approval ? 2 : 1} — bridge {card.amountIn} {card.tokenIn} to {card.toChain}
-        {plan.mocked ? " (simulated)" : ""}
+        Bridge {card.amountIn} {card.tokenIn} to {card.toChain}
       </div>
 
       {step === "done" && (
         <>
           <div className="status-line">
-            <span className="dot done" /> {plan.mocked ? "Simulation complete." : "Submitted."}
+            <span className="dot done" /> Submitted.
           </div>
-          {txHash && !plan.mocked && (
+          {txHash && (
             <p className="notes">
               Track delivery on{" "}
               <a className="link" href={`https://layerzeroscan.com/tx/${txHash}`} target="_blank" rel="noreferrer">
@@ -131,15 +96,19 @@ export function RailAExecutor({
               .
             </p>
           )}
-          {plan.mocked && <div className="deposit-box">{txHash}</div>}
         </>
       )}
 
       {step === "idle" && (
         <div className="actions">
           <button className="btn" onClick={run}>
-            {plan.mocked ? "Run simulation" : "Open wallet to sign"}
+            Open wallet to sign
           </button>
+        </div>
+      )}
+      {step === "sending" && (
+        <div className="status-line">
+          <span className="dot pending" /> Check your wallet…
         </div>
       )}
     </div>

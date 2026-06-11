@@ -1,16 +1,16 @@
 import { pad, getAddress, type Address } from "viem";
 import {
   AP3X_LZ_EID,
+  BAP3X_OFT_BASE,
   RAIL_A_DECIMALS,
-  railAMocked,
-  railARoute,
   type RailAToken,
 } from "./chains";
 import { applySlippage, toSmallestUnits } from "./units";
 import type { Intent } from "./intent";
 
-// Rail A — Skyline / LayerZero OFT v2 on Base. Builders are pure functions;
-// contract reads/writes happen in the UI layer via wagmi/viem.
+// Rail A — the bAP3X LayerZero OFT v2 on Base (live contract, verified
+// on-chain). Builders are pure functions; contract reads/writes happen via
+// wagmi/viem with the user's wallet.
 
 export const OFT_ABI = [
   {
@@ -153,33 +153,20 @@ export type SendParam = {
 
 export type RailAPlan = {
   kind: "railA";
-  mocked: boolean;
   token: RailAToken;
   decimals: number;
-  oftAddress: Address | null; // null only when mocked
-  // ERC-20 approval the user signs first (USDC adapter). Null for native OFTs.
-  approval: { token: Address; spender: Address; amountLD: bigint } | null;
+  oftAddress: Address;
   sendParam: SendParam;
   recipient: Address;
 };
 
 const SLIPPAGE_BPS = 50; // 0.5% min-received floor
-const MOCK_DST_EID = 30999;
 
 export function buildRailAPlan(
   intent: Intent,
   connectedWallet: Address | undefined,
 ): { ok: true; plan: RailAPlan } | { ok: false; error: string } {
   const token = intent.tokenIn as RailAToken;
-  const mocked = railAMocked();
-  const route = railARoute(token);
-
-  if (!mocked && !route.oftAddress) {
-    return {
-      ok: false,
-      error: `No live ${token} contract configured on Base — fill in the NEXT_PUBLIC_*_BASE env var or run in mock mode.`,
-    };
-  }
 
   const recipientRaw = intent.recipient ?? connectedWallet;
   if (!recipientRaw) {
@@ -197,27 +184,16 @@ export function buildRailAPlan(
 
   const decimals = RAIL_A_DECIMALS[token];
   const amountLD = toSmallestUnits(intent.amount!, decimals);
-  const dstEid = AP3X_LZ_EID ?? MOCK_DST_EID;
 
   return {
     ok: true,
     plan: {
       kind: "railA",
-      mocked,
       token,
       decimals,
-      oftAddress: route.oftAddress,
-      approval:
-        route.approveToken && (route.oftAddress || mocked)
-          ? {
-              token: route.approveToken,
-              // In mock mode the spender may be unset; use the zero-pad mock.
-              spender: route.oftAddress ?? ("0x" + "0".repeat(40)) as Address,
-              amountLD,
-            }
-          : null,
+      oftAddress: BAP3X_OFT_BASE,
       sendParam: {
-        dstEid,
+        dstEid: AP3X_LZ_EID,
         to: pad(recipient, { size: 32 }),
         amountLD,
         minAmountLD: applySlippage(amountLD, SLIPPAGE_BPS),
@@ -230,15 +206,9 @@ export function buildRailAPlan(
   };
 }
 
-// Simulated LayerZero fee for mock mode — visibly fake but plausible.
-export function mockRailAFee(plan: RailAPlan): bigint {
-  return 200_000_000_000_000n + plan.sendParam.amountLD / 1_000_000n;
-}
-
 // Wire format: RailAPlan with bigints stringified, plus the quoted fee. The
 // client reconstructs the exact same values to execute — no re-derivation.
-export type SerializedRailAPlan = Omit<RailAPlan, "approval" | "sendParam"> & {
-  approval: { token: string; spender: string; amountLD: string } | null;
+export type SerializedRailAPlan = Omit<RailAPlan, "sendParam"> & {
   sendParam: {
     dstEid: number;
     to: string;
@@ -254,13 +224,6 @@ export type SerializedRailAPlan = Omit<RailAPlan, "approval" | "sendParam"> & {
 export function serializeRailAPlan(plan: RailAPlan, fee: bigint): SerializedRailAPlan {
   return {
     ...plan,
-    approval: plan.approval
-      ? {
-          token: plan.approval.token,
-          spender: plan.approval.spender,
-          amountLD: plan.approval.amountLD.toString(),
-        }
-      : null,
     sendParam: {
       ...plan.sendParam,
       amountLD: plan.sendParam.amountLD.toString(),

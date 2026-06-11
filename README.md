@@ -6,23 +6,28 @@ own wallet. The AI never signs anything and never picks the execution path; it o
 extracts a typed intent.
 
 ```
-"Move 250 USDC from Base to Apex Fusion"      -> Rail A (Skyline / LayerZero OFT)
+"Bridge 25 AP3X to Apex Fusion"               -> Rail A (bAP3X LayerZero OFT)
 "Swap 0.1 ETH on Base for NEAR"               -> Rail B (NEAR Intents 1-Click)
 "Send 50 USDC to alice.near"                  -> Rail B
 ```
+
+There is no Skyline API anywhere in the loop — the Apex Fusion route talks
+directly to the **bAP3X LayerZero OFT contract** on Base (verified on-chain),
+and every other destination rides **NEAR Intents**.
 
 ## Quick start
 
 ```bash
 npm install
 npm run dev          # http://localhost:3001
-npm test             # 34 unit/equivalence/integration tests
+npm test             # unit/equivalence/integration tests
 npm run eval:parser  # 100-prompt parse eval (100% on the heuristic engine)
 ```
 
-Runs with zero configuration: parsing falls back to a built-in heuristic, the
-Apex Fusion route is simulated, and **NEAR Intents quotes are live** (with the
-0.2% no-auth fee). Copy `.env.local.example` to `.env.local` to upgrade pieces.
+Runs live with zero configuration: parsing falls back to a built-in heuristic,
+**Rail A quotes live LayerZero fees** from the bAP3X OFT, and **NEAR Intents
+quotes are live** (with the 0.2% no-auth fee). Copy `.env.local.example` to
+`.env.local` to add Claude parsing or the 1-Click partner JWT.
 
 ## Architecture
 
@@ -34,9 +39,10 @@ English prompt ──> /api/parse ──> Intent (zod-typed)          <── Ma
                         deterministic router (plain code — LLM has no say)
                           │                          │
             to/from Apex Fusion              everything else cross-chain
+              (AP3X / bAP3X only)                    │
                           │                          │
-              Rail A: Skyline OFT            Rail B: NEAR Intents 1-Click
-              approve? -> quoteSend          dry quote -> review -> real quote
+              Rail A: LayerZero OFT          Rail B: NEAR Intents 1-Click
+              quoteSend (live fee)           dry quote -> review -> real quote
               -> send (user signs)           -> user signs ONE transfer to the
               track: LayerZero Scan            deposit address -> solvers settle
                                                track: /v0/status (auto-refunds)
@@ -66,23 +72,24 @@ See [SECURITY.md](SECURITY.md) for the full trust model.
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude parsing (haiku, sonnet escalation) instead of the regex heuristic |
 | `ONECLICK_JWT` | Removes the 0.2% 1-Click no-auth fee (partner registration: docs.near-intents.org) |
-| `NEXT_PUBLIC_BAP3X_OFT_BASE` | bAP3X OFT on Base — **verified on-chain:** `0x9208d82f121806a34a39bb90733b4c5c54f3993e` |
-| `NEXT_PUBLIC_AP3X_LZ_EID` | Apex Fusion LayerZero EID — discovered from on-chain `PeerSet` events: `30384` (confirm with Skyline before first mainnet send) |
-| `NEXT_PUBLIC_USDC_OFT_ADAPTER_BASE` | USDC→Apex adapter (not yet published by Skyline; that route stays simulated) |
+| `NEXT_PUBLIC_BAP3X_OFT_BASE` | Override the built-in bAP3X OFT default (`0x9208d82f…3993e`, verified on-chain) |
+| `NEXT_PUBLIC_AP3X_LZ_EID` | Override the built-in AP3X endpoint id default (`30384`, read from on-chain `PeerSet` events) |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect QR pairing |
 | `NEXT_PUBLIC_SPEND_CAP_USD` | Per-tx safety cap (default 1000) |
 
-Rail A goes live by filling env vars only — no code changes.
+USDC has no OFT route to Apex Fusion (no adapter contract exists) — the router
+explains that and offers the supported tokens; USDC bridges everywhere else
+via NEAR Intents.
 
 ## Status / done-ness
 
+- ✅ Rail A (LayerZero OFT): **live by default.** `quoteSend` verified against
+  the real bAP3X contract (returned ~0.0000124 ETH for a 1-token send to EID
+  30384); address + EID verified on-chain, not from docs.
 - ✅ Rail B (NEAR Intents): live dry quotes verified against the real API
   (0.05 ETH → wNEAR, real solver pricing). Tokens cache, deposit-address flow,
   status polling, reload-safe history all wired.
-- ✅ Rail A (Skyline OFT): builders + 2-step USDC approve flow + mock simulation;
-  bAP3X address verified on-chain (name/symbol/decimals/oftVersion/endpoint).
 - ✅ Parser: 100/100 eval (heuristic engine); Claude engine ready behind a key
   (`npm run eval:parser -- --engine=claude`).
-- ⬜ Final mainnet smoke test (a ~$2 USDC→NEAR swap) — needs a funded wallet;
-  everything up to the signature is verified.
-- ⬜ Confirm EID 30384 with the Skyline team before the first live Rail A send.
+- ⬜ Final mainnet smoke tests (a ~$2 USDC→NEAR swap; a small bAP3X→Apex send)
+  — need a funded wallet; everything up to the signature is verified.

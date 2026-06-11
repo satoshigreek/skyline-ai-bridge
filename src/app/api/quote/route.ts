@@ -4,7 +4,7 @@ import { base } from "viem/chains";
 import { CHAINS } from "@/lib/chains";
 import { IntentSchema, isComplete, effectiveTokenOut, type Intent } from "@/lib/intent";
 import { routeIntent } from "@/lib/router";
-import { buildRailAPlan, mockRailAFee, OFT_ABI, serializeRailAPlan } from "@/lib/oft";
+import { buildRailAPlan, OFT_ABI, serializeRailAPlan } from "@/lib/oft";
 import { buildRailACard, buildRailBCard } from "@/lib/build";
 import { getTokens, requestQuote, resolveAsset } from "@/lib/oneclick";
 import { toSmallestUnits } from "@/lib/units";
@@ -50,19 +50,15 @@ export async function POST(req: Request) {
       const built = buildRailAPlan(intent, sender as Address | undefined);
       if (!built.ok) return NextResponse.json({ error: built.error }, { status: 422 });
 
-      let fee: bigint;
-      if (built.plan.mocked) {
-        fee = mockRailAFee(built.plan);
-      } else {
-        const client = createPublicClient({ chain: base, transport: http() });
-        const msgFee = (await client.readContract({
-          address: built.plan.oftAddress!,
-          abi: OFT_ABI,
-          functionName: "quoteSend",
-          args: [built.plan.sendParam, false],
-        })) as { nativeFee: bigint; lzTokenFee: bigint };
-        fee = msgFee.nativeFee;
-      }
+      // Live LayerZero fee from the bAP3X OFT contract on Base.
+      const client = createPublicClient({ chain: base, transport: http() });
+      const msgFee = (await client.readContract({
+        address: built.plan.oftAddress,
+        abi: OFT_ABI,
+        functionName: "quoteSend",
+        args: [built.plan.sendParam, false],
+      })) as { nativeFee: bigint; lzTokenFee: bigint };
+      const fee = msgFee.nativeFee;
       const card = buildRailACard(intent, built.plan, fee);
       return NextResponse.json({
         rail: "A",
