@@ -135,10 +135,8 @@ a.link{color:var(--accent-2)}
 
   <div id="noWalletBanner" class="banner warn hidden">
     <span>⚠️</span>
-    <span><b>No wallet detected.</b> Install MetaMask / Coinbase Wallet — and note wallets don't
-    inject into <span class="mono">file://</span> pages: serve this file over http(s)
-    (e.g. <span class="mono">python -m http.server</span>) or host it anywhere. Live quotes work
-    without a wallet; signing needs one.</span>
+    <span id="noWalletText"><b>No wallet detected.</b> Install MetaMask / Coinbase Wallet / Rabby.
+    Live quotes work without a wallet; signing needs one.</span>
   </div>
 
   <div class="prompt-bar">
@@ -297,8 +295,27 @@ function renderWalletOptions(){
   const box = $("walletList");
   if (list.length===0){
     const isFile = location.protocol==="file:";
-    box.innerHTML = `<div class="empty">No browser wallet found.${isFile?` Wallet extensions <span class="mono">don't inject into file:// pages</span> — serve this file over http(s) (<span class="mono">python -m http.server</span>) or host it (GitHub Pages, Netlify…), then reopen.`:""}
-      <br/><br/>Get one: <a target="_blank" href="https://metamask.io/download/">MetaMask</a> · <a target="_blank" href="https://www.coinbase.com/wallet/downloads">Coinbase Wallet</a> · <a target="_blank" href="https://rabby.io/">Rabby</a></div>`;
+    if (isFile){
+      box.innerHTML = `<div class="empty">Browsers block wallet extensions on <span class="mono">file://</span> pages —
+        that's a browser security rule, not a bug here.<br/><br/>
+        <b>Fix:</b> double-click <span class="mono">Skyline Bridge.bat</span> (in the same folder) —
+        it opens this app at <span class="mono">http://127.0.0.1:8123</span> where your wallets work.<br/><br/>
+        <button id="tryLauncher" class="btn small" style="width:100%">I already ran it — open the working copy</button>
+        <div id="launcherMsg" class="err hidden" style="margin-top:8px"></div></div>`;
+      $("tryLauncher").onclick = async () => {
+        try {
+          await fetch("http://127.0.0.1:8123/", {mode:"no-cors"});
+          location.href = "http://127.0.0.1:8123/";
+        } catch(_) {
+          $("launcherMsg").textContent = "Launcher isn't running — double-click Skyline Bridge.bat first.";
+          $("launcherMsg").classList.remove("hidden");
+        }
+      };
+      return;
+    }
+    box.innerHTML = `<div class="empty">No browser wallet found in this browser.
+      <br/><br/>Get one: <a target="_blank" href="https://metamask.io/download/">MetaMask</a> · <a target="_blank" href="https://www.coinbase.com/wallet/downloads">Coinbase Wallet</a> · <a target="_blank" href="https://rabby.io/">Rabby</a>
+      <br/><br/>Then reload this page.</div>`;
     return;
   }
   box.innerHTML = list.map((d,i)=>`<button class="wopt" data-i="${i}">
@@ -720,7 +737,22 @@ $("prompt").addEventListener("keydown",(e)=>{if(e.key==="Enter")fillFromPrompt()
 $("aiKey").value=localStorage.getItem("skyline.aiKey")||"";
 $("aiKey").addEventListener("change",()=>localStorage.setItem("skyline.aiKey",$("aiKey").value.trim()));
 // Show the no-wallet hint only if nothing announced itself after a beat.
-setTimeout(()=>{ if(discovered.size===0 && !window.ethereum) $("noWalletBanner").classList.remove("hidden"); }, 900);
+// On file:// pages, wallets CANNOT inject (browser rule) — point at the
+// launcher, and if it's already running, jump straight to the working copy.
+setTimeout(async ()=>{
+  if (discovered.size>0 || window.ethereum) return;
+  if (location.protocol==="file:") {
+    try {
+      await fetch("http://127.0.0.1:8123/", {mode:"no-cors"});
+      location.href = "http://127.0.0.1:8123/"; // launcher is up — use it
+      return;
+    } catch(_) {}
+    $("noWalletText").innerHTML = `<b>Opened as a file — wallets can't connect here</b> (browser security rule).
+      Double-click <span class="mono">Skyline Bridge.bat</span> in the same folder instead: it opens this
+      app at <span class="mono">http://127.0.0.1:8123</span> where your wallets work.`;
+  }
+  $("noWalletBanner").classList.remove("hidden");
+}, 900);
 
 renderSelects();
 loadAvailability();
