@@ -53,6 +53,7 @@ export function RailAExecutor({
         oftCmd: plan.sendParam.oftCmd as `0x${string}`,
       };
       const hash = await writeContractAsync({
+        chainId: plan.chainId,
         address: plan.oftAddress as Address,
         abi: OFT_ABI,
         functionName: "send",

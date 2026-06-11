@@ -25,8 +25,8 @@ export async function GET(req: Request) {
     for (const chain of SCOPE_CHAINS) {
       availability[chain] = {};
       for (const tok of (CHAIN_TOKENS[chain] ?? []) as ScopeToken[]) {
-        if (chain === "ap3x" || (tok === "AP3X" && chain === "base")) {
-          availability[chain][tok] = true; // Rail A (bAP3X LayerZero OFT)
+        if (chain === "ap3x" || tok === "AP3X") {
+          availability[chain][tok] = true; // Rail A (AP3X OFT mesh, all legs live)
           continue;
         }
         availability[chain][tok] = resolveAsset(tokens, chain as ChainKey, tok) != null;

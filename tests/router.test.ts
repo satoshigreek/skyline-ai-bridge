@@ -19,7 +19,8 @@ function intent(overrides: Partial<Intent>): Intent {
 }
 
 describe("deterministic router (scope: Base/BNB/Apex Fusion/Cardano)", () => {
-  it("routes AP3X to Apex Fusion over Rail A", () => {
+  it("routes the AP3X OFT mesh over Rail A (all legs)", () => {
+    // Base -> Apex Fusion
     expect(routeIntent(intent({ toChain: "ap3x", tokenIn: "AP3X" }))).toMatchObject({
       ok: true,
       rail: "A",
@@ -28,6 +29,18 @@ describe("deterministic router (scope: Base/BNB/Apex Fusion/Cardano)", () => {
       ok: true,
       rail: "A",
     });
+    // BNB -> Apex Fusion (bnAP3X)
+    expect(
+      routeIntent(intent({ fromChain: "bsc", toChain: "ap3x", tokenIn: "bnAP3X" })),
+    ).toMatchObject({ ok: true, rail: "A" });
+    // Base <-> BNB within the mesh
+    expect(routeIntent(intent({ toChain: "bsc", tokenIn: "AP3X" }))).toMatchObject({
+      ok: true,
+      rail: "A",
+    });
+    expect(
+      routeIntent(intent({ fromChain: "bsc", toChain: "base", tokenIn: "AP3X" })),
+    ).toMatchObject({ ok: true, rail: "A" });
   });
 
   it("rejects USDC to Apex Fusion (no OFT route)", () => {
@@ -72,10 +85,10 @@ describe("deterministic router (scope: Base/BNB/Apex Fusion/Cardano)", () => {
     if (!d.ok) expect(d.error).toMatch(/isn't available on BNB Chain/);
   });
 
-  it("keeps AP3X off Rail B routes", () => {
-    const d = routeIntent(intent({ tokenIn: "AP3X", toChain: "bsc" }));
+  it("keeps AP3X inside the mesh (no Cardano leg)", () => {
+    const d = routeIntent(intent({ tokenIn: "AP3X", toChain: "cardano" }));
     expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/Base ↔ Apex Fusion/);
+    if (!d.ok) expect(d.error).toMatch(/Base, BNB Chain and Apex Fusion/);
   });
 
   it("rejects same-chain transfers", () => {

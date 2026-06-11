@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http, type Address } from "viem";
-import { base } from "viem/chains";
+import { base, bsc } from "viem/chains";
 import { CHAINS } from "@/lib/chains";
 import { IntentSchema, isComplete, effectiveTokenOut, type Intent } from "@/lib/intent";
 import { routeIntent } from "@/lib/router";
@@ -50,8 +50,11 @@ export async function POST(req: Request) {
       const built = buildRailAPlan(intent, sender as Address | undefined);
       if (!built.ok) return NextResponse.json({ error: built.error }, { status: 422 });
 
-      // Live LayerZero fee from the bAP3X OFT contract on Base.
-      const client = createPublicClient({ chain: base, transport: http() });
+      // Live LayerZero fee from the AP3X OFT on the origin chain.
+      const client = createPublicClient({
+        chain: intent.fromChain === "bsc" ? bsc : base,
+        transport: http(),
+      });
       const msgFee = (await client.readContract({
         address: built.plan.oftAddress,
         abi: OFT_ABI,

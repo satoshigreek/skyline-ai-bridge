@@ -20,6 +20,7 @@ const TOKEN_WORDS: Record<string, string> = {
   ada: "ADA",
   ap3x: "AP3X",
   bap3x: "bAP3X",
+  bnap3x: "bnAP3X",
   arb: "ARB",
   op: "OP",
   pol: "POL",
@@ -202,8 +203,9 @@ export function heuristicParse(rawPrompt: string): Intent {
   if (!toChain && tokenOut && TOKEN_HOME_CHAIN[tokenOut]) {
     toChain = TOKEN_HOME_CHAIN[tokenOut];
   }
-  // bAP3X lives on Base; bridging it means going to Apex Fusion.
-  if (!toChain && tokenIn === "bAP3X") toChain = "ap3x";
+  // bAP3X (Base) / bnAP3X (BNB) bridging defaults toward Apex Fusion.
+  if (!toChain && (tokenIn === "bAP3X" || tokenIn === "bnAP3X")) toChain = "ap3x";
+  if (!fromChain && tokenIn === "bnAP3X") fromChain = "bsc";
 
   let defaultedFrom = false;
   if (!fromChain) {

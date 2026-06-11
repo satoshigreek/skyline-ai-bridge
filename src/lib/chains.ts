@@ -84,15 +84,37 @@ export const BAP3X_OFT_BASE = envAddress(
 export const AP3X_LZ_EID =
   Number(process.env.NEXT_PUBLIC_AP3X_LZ_EID ?? 0) || DEFAULT_AP3X_EID;
 
+// The AP3X OFT MESH — one token family across three chains, all verified
+// on-chain (2026-06-11): bAP3X on Base and bnAP3X on BNB live at the SAME
+// address, each peered to the other two legs; quoteSend returns live fees on
+// every leg. AP3X is the native representation on Apex Fusion.
+export const AP3X_MESH: Partial<
+  Record<ChainKey, { oft: `0x${string}`; eid: number; label: string }>
+> = {
+  base: { oft: BAP3X_OFT_BASE, eid: LZ_EID_BASE, label: "bAP3X" },
+  bsc: {
+    oft: envAddress(process.env.NEXT_PUBLIC_BNAP3X_OFT_BSC, DEFAULT_BAP3X_OFT),
+    eid: 30102,
+    label: "bnAP3X",
+  },
+  ap3x: { oft: BAP3X_OFT_BASE, eid: AP3X_LZ_EID, label: "AP3X" }, // dest-only
+};
+
 // USDC has no OFT route to Apex Fusion (no adapter deployed) — it bridges
-// everywhere else via Rail B. Rail A is the bAP3X/AP3X LayerZero OFT only.
-export type RailAToken = "AP3X" | "bAP3X";
-export const RAIL_A_TOKENS: RailAToken[] = ["AP3X", "bAP3X"];
+// everywhere else via Rail B. Rail A is the AP3X OFT mesh only.
+export type RailAToken = "AP3X" | "bAP3X" | "bnAP3X";
+export const RAIL_A_TOKENS: RailAToken[] = ["AP3X", "bAP3X", "bnAP3X"];
 
 export const RAIL_A_DECIMALS: Record<RailAToken, number> = {
   AP3X: 18,
   bAP3X: 18,
+  bnAP3X: 18,
 };
+
+// Normalize any family representation to the canonical scope token.
+export function normalizeAp3x(token: string): string {
+  return token === "bAP3X" || token === "bnAP3X" ? "AP3X" : token;
+}
 
 // ---------------------------------------------------------------------------
 // Product scope — the chains and tokens this app exposes. The parser still
@@ -121,15 +143,15 @@ export type ScopeToken = (typeof SCOPE_TOKENS)[number];
 // "soon" in the UI instead of producing quotes that can't settle.
 export const CHAIN_TOKENS: Record<string, ScopeToken[]> = {
   base: ["AP3X", "USDC", "ETH", "WETH", "BTC", "WBTC", "ADA"],
-  bsc: ["USDC", "USDT", "ADA", "WETH", "WBTC"],
+  bsc: ["AP3X", "USDC", "USDT", "ADA", "WETH", "WBTC"],
   ap3x: ["AP3X"],
   cardano: ["ADA"],
 };
 
 // How a scope token is labeled on a given chain (wrapped representations).
 export const TOKEN_DISPLAY: Partial<Record<ChainKey, Partial<Record<ScopeToken, string>>>> = {
-  base: { BTC: "cbBTC", ADA: "cbADA" },
-  bsc: { ADA: "ADA (BEP-20)" },
+  base: { BTC: "cbBTC", ADA: "cbADA", AP3X: "bAP3X" },
+  bsc: { ADA: "ADA (BEP-20)", AP3X: "bnAP3X" },
 };
 
 export function tokenLabel(chain: ChainKey, token: ScopeToken): string {

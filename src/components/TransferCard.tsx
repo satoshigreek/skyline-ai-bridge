@@ -91,16 +91,15 @@ export function TransferCard({
   }, []);
 
   const fromTokens = (CHAIN_TOKENS[fromChain] ?? []) as ScopeToken[];
-  // Apex Fusion is reached via the bAP3X OFT on Base — hide it for other origins.
-  const destChains = SCOPE_CHAINS.filter(
-    (c) => c !== fromChain && !(c === "ap3x" && fromChain !== "base"),
-  );
+  const destChains = SCOPE_CHAINS.filter((c) => c !== fromChain);
   const destTokens = (CHAIN_TOKENS[toChain] ?? []) as ScopeToken[];
   const destNonEvm = CHAINS[toChain].family !== "evm";
   const amountOk = /^\d+(\.\d+)?$/.test(amount) && Number(amount) > 0;
 
   const buildIntent = useCallback((): Intent => {
-    const effTokenIn = fromChain === "base" && tokenIn === "AP3X" ? "bAP3X" : tokenIn;
+    // The card always speaks in canonical scope tokens; the router and the
+    // builders handle the chain-local representations (bAP3X / bnAP3X).
+    const effTokenIn = tokenIn;
     return {
       action: tokenOut !== tokenIn ? "swap" : "bridge",
       tokenIn: effTokenIn,

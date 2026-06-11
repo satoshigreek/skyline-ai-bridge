@@ -1,16 +1,16 @@
 import { pad, getAddress, type Address } from "viem";
 import {
-  AP3X_LZ_EID,
-  BAP3X_OFT_BASE,
+  AP3X_MESH,
+  EVM_CHAIN_IDS,
   RAIL_A_DECIMALS,
   type RailAToken,
 } from "./chains";
 import { applySlippage, toSmallestUnits } from "./units";
 import type { Intent } from "./intent";
 
-// Rail A — the bAP3X LayerZero OFT v2 on Base (live contract, verified
-// on-chain). Builders are pure functions; contract reads/writes happen via
-// wagmi/viem with the user's wallet.
+// Rail A — the AP3X LayerZero OFT mesh: bAP3X (Base) ↔ bnAP3X (BNB) ↔ AP3X
+// (Apex Fusion), all legs verified live on-chain. Builders are pure functions;
+// contract reads/writes happen via wagmi/viem with the user's wallet.
 
 export const OFT_ABI = [
   {
@@ -156,6 +156,8 @@ export type RailAPlan = {
   token: RailAToken;
   decimals: number;
   oftAddress: Address;
+  // EVM chain id the send() is signed on (8453 Base, 56 BNB).
+  chainId: number;
   sendParam: SendParam;
   recipient: Address;
 };
@@ -167,6 +169,12 @@ export function buildRailAPlan(
   connectedWallet: Address | undefined,
 ): { ok: true; plan: RailAPlan } | { ok: false; error: string } {
   const token = intent.tokenIn as RailAToken;
+  const origin = AP3X_MESH[intent.fromChain!];
+  const dest = AP3X_MESH[intent.toChain!];
+  const chainId = EVM_CHAIN_IDS[intent.fromChain!];
+  if (!origin || !dest || !chainId) {
+    return { ok: false, error: "AP3X moves between Base, BNB Chain and Apex Fusion only." };
+  }
 
   const recipientRaw = intent.recipient ?? connectedWallet;
   if (!recipientRaw) {
@@ -178,11 +186,11 @@ export function buildRailAPlan(
   } catch {
     return {
       ok: false,
-      error: `"${recipientRaw}" isn't a valid EVM address — Apex Fusion recipients must be 0x… addresses.`,
+      error: `"${recipientRaw}" isn't a valid EVM address — AP3X-mesh recipients must be 0x… addresses.`,
     };
   }
 
-  const decimals = RAIL_A_DECIMALS[token];
+  const decimals = RAIL_A_DECIMALS[token] ?? 18;
   const amountLD = toSmallestUnits(intent.amount!, decimals);
 
   return {
@@ -191,9 +199,10 @@ export function buildRailAPlan(
       kind: "railA",
       token,
       decimals,
-      oftAddress: BAP3X_OFT_BASE,
+      oftAddress: origin.oft,
+      chainId,
       sendParam: {
-        dstEid: AP3X_LZ_EID,
+        dstEid: dest.eid,
         to: pad(recipient, { size: 32 }),
         amountLD,
         minAmountLD: applySlippage(amountLD, SLIPPAGE_BPS),

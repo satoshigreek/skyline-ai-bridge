@@ -1,4 +1,4 @@
-import { CHAINS, EVM_CHAIN_IDS } from "./chains";
+import { AP3X_MESH, CHAINS, EVM_CHAIN_IDS } from "./chains";
 import { effectiveTokenOut, type Intent } from "./intent";
 import { fromSmallestUnits } from "./units";
 import type { RailAPlan } from "./oft";
@@ -56,15 +56,16 @@ export function buildRailACard(
     railLabel: "LayerZero OFT",
     fromChain: CHAINS[intent.fromChain!].label,
     toChain: CHAINS[intent.toChain!].label,
-    tokenIn: plan.token,
-    tokenOut: plan.token === "bAP3X" ? "AP3X" : plan.token,
+    // Show the chain-local representation on each side of the mesh.
+    tokenIn: AP3X_MESH[intent.fromChain!]?.label ?? plan.token,
+    tokenOut: AP3X_MESH[intent.toChain!]?.label ?? plan.token,
     amountIn,
     estOut: amountIn, // OFT is 1:1; only slippage floor differs
     minOut,
     fees: [
       {
         label: "LayerZero fee",
-        value: `${fromSmallestUnits(nativeFeeWei, 18, 8)} ETH`,
+        value: `${fromSmallestUnits(nativeFeeWei, 18, 8)} ${intent.fromChain === "bsc" ? "BNB" : "ETH"}`,
       },
     ],
     etaSeconds: 120,
