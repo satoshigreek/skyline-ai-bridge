@@ -1,9 +1,20 @@
 # Skyline AI Bridge
 
-Connect a wallet on **Base**, type what you want in plain English, review **one card**
-— route, amount in, min received, itemized fees, ETA, recipient — and sign in your
-own wallet. The AI never signs anything and never picks the execution path; it only
-extracts a typed intent.
+Connect a wallet on **Base** or **BNB Chain**, type what you want in plain English,
+review **one card** — route, amount in, min received, itemized fees, ETA, recipient —
+and sign in your own wallet. The AI never signs anything and never picks the
+execution path; it only extracts a typed intent.
+
+## Three ways to run it
+
+| | What | For whom |
+| --- | --- | --- |
+| **Hosted** | GitHub Pages serves [`docs/index.html`](docs/index.html) — just open the site URL | anyone with a browser |
+| **Single file** | [`standalone/index.html`](standalone/index.html) + `Skyline Bridge.bat` launcher (wallets can't inject into `file://` pages, so the launcher serves it on `127.0.0.1:8123`) | offline / hand someone a folder |
+| **Full app** | This Next.js repo (`npm install && npm run dev`) — adds Claude parsing, RainbowKit/WalletConnect, server-side rate limits & spend-cap | development / production deploy |
+
+Product spec and the original build prompt live in [`docs/SPEC.md`](docs/SPEC.md) and
+[`docs/BUILD_PROMPT.md`](docs/BUILD_PROMPT.md).
 
 ```
 "Bridge 25 AP3X to Apex Fusion"               -> Rail A (bAP3X LayerZero OFT)
