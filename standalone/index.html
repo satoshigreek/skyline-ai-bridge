@@ -72,6 +72,7 @@ input.rcpt.required{border-color:var(--warn)}
 .rail-tag{display:inline-block;font-family:var(--f-mono);font-size:9.5px;font-weight:600;padding:3px 8px;border-radius:2px;letter-spacing:.14em;text-transform:uppercase}
 .rail-tag.A{background:rgba(217,88,62,.16);color:var(--base-c);border:1px solid rgba(217,88,62,.35)}
 .rail-tag.B{background:rgba(75,184,122,.14);color:var(--emerald-soft);border:1px solid rgba(75,184,122,.35)}
+.rail-tag.C{background:rgba(242,160,60,.16);color:var(--ignition);border:1px solid rgba(242,160,60,.38)}
 .gate{margin-top:12px;padding:12px;border:1px solid rgba(242,160,60,.4);background:rgba(242,160,60,.07);border-radius:3px;font-size:12.5px;color:var(--ink-2);line-height:1.5}
 .gate input[type="text"]{width:100%;margin-top:8px;background:var(--paper);border:1px solid var(--rule);color:var(--ink);border-radius:3px;padding:9px 11px;font-family:var(--f-mono);font-size:13px}
 .gate label{display:flex;gap:8px;align-items:center;cursor:pointer;margin-top:8px}
@@ -125,7 +126,7 @@ a.link{color:var(--accent-2)}
   <div class="topbar">
     <div>
       <div class="brand-mark">Skyline <span>AI Bridge</span></div>
-      <div class="brand-status">LayerZero + NEAR Intents · Live</div>
+      <div class="brand-status">LayerZero · NEAR Intents · Skyline · Live</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="walletPill" class="wallet-pill hidden"></span>
@@ -187,7 +188,7 @@ a.link{color:var(--accent-2)}
   <div id="historyPanel" class="panel hidden"><h2>Your transfers</h2><div id="historyList"></div></div>
 
   <p class="footnote">
-    AP3X · USDC · USDT · ADA · ETH · WETH · BTC · WBTC — Base · BNB · Apex Fusion · Cardano<br/>
+    Base · BNB · Nexus · Prime · Vector · Cardano — LayerZero mesh · NEAR Intents · Skyline internal<br/>
     The AI only proposes · you sign in your own wallet · failures refund automatically
   </p>
 </div>
@@ -210,24 +211,44 @@ const CHAINS = {
   bsc:     { label:"BNB Chain",         evm:true,  chainIdHex:"0x38",   chainId:56,   oneClick:"bsc",
              rpc:"https://bsc-dataseed.binance.org", explorer:"https://bscscan.com", native:"BNB",
              add:{chainName:"BNB Smart Chain",nativeCurrency:{name:"BNB",symbol:"BNB",decimals:18},rpcUrls:["https://bsc-dataseed.binance.org"],blockExplorerUrls:["https://bscscan.com"]} },
-  ap3x:    { label:"Apex Fusion (AP3X)",evm:true },
-  cardano: { label:"Cardano",           evm:false, oneClick:"cardano" },
+  // Apex Fusion Nexus — EVM L1 (chainId 9069). Reachable from Base/BNB by
+  // LayerZero (Rail A) and bridges internally via Skyline (Rail C).
+  nexus:   { label:"Nexus",             evm:true,  chainIdHex:"0x236d", chainId:9069, apex:"nexus",
+             rpc:"https://rpc.nexus.mainnet.apexfusion.org/", explorer:"https://explorer.nexus.mainnet.apexfusion.org", native:"AP3X",
+             add:{chainName:"Apex Fusion Nexus",nativeCurrency:{name:"AP3X",symbol:"AP3X",decimals:18},rpcUrls:["https://rpc.nexus.mainnet.apexfusion.org/"],blockExplorerUrls:["https://explorer.nexus.mainnet.apexfusion.org"]} },
+  // Prime & Vector — Apex Fusion Cardano-VM chains (sign via CIP-30).
+  prime:   { label:"Prime",  evm:false, apex:"prime",  explorer:"https://explorer.prime.mainnet.apexfusion.org" },
+  vector:  { label:"Vector", evm:false, apex:"vector", explorer:"https://explorer.vector.mainnet.apexfusion.org" },
+  cardano: { label:"Cardano",evm:false, oneClick:"cardano", apex:"cardano", explorer:"https://cardanoscan.io" },
 };
-const SCOPE_CHAINS = ["base","bsc","ap3x","cardano"];
-const ORIGINS = ["base","bsc"];
+const SCOPE_CHAINS = ["base","bsc","nexus","prime","vector","cardano"];
+const ORIGINS = ["base","bsc","nexus","prime","vector","cardano"];
 const CHAIN_TOKENS = {
   base:["AP3X","USDC","ETH","WETH","BTC","WBTC","ADA"],
   bsc:["AP3X","USDC","USDT","ADA","WETH","WBTC"],
-  ap3x:["AP3X"], cardano:["ADA"],
+  nexus:["AP3X"], prime:["AP3X"], vector:["AP3X"], cardano:["ADA","AP3X"],
 };
-const TOKEN_DISPLAY = { base:{BTC:"cbBTC",ADA:"cbADA",AP3X:"bAP3X"}, bsc:{ADA:"ADA (BEP-20)",AP3X:"bnAP3X"} };
+const TOKEN_DISPLAY = { base:{BTC:"cbBTC",ADA:"cbADA",AP3X:"bAP3X"}, bsc:{ADA:"ADA (BEP-20)",AP3X:"bnAP3X"}, nexus:{AP3X:"AP3X"}, cardano:{AP3X:"cAP3X"} };
 const tokenLabel = (c,t) => (TOKEN_DISPLAY[c]||{})[t] || t;
-// AP3X OFT mesh — same contract address on Base and BNB, verified on-chain
+// AP3X OFT mesh — same contract address on Base/BNB/Nexus, verified on-chain
 // (name/symbol/oftVersion/peers) with live quoteSend on every leg.
 const MESH = {
   oft:"0x9208d82f121806a34a39bb90733b4c5c54f3993e",
-  eids:{ base:30184, bsc:30102, ap3x:30384 },
+  eids:{ base:30184, bsc:30102, nexus:30384, ap3x:30384 },
 };
+// ---- Rail C (Apex Fusion internal — Skyline native bridge) ----
+// The Skyline API is CORS-locked, so Rail C is proxied through this app's
+// backend. Default = the live deployment; override with ?api=<url>.
+const APEX = {
+  backend: (new URLSearchParams(location.search).get("api")
+    || "https://tail-fragrances-congratulations-doll.trycloudflare.com").replace(/\/$/,""),
+  // The enabled internal pairs (the requested scope).
+  routes: new Set(["nexus->prime","prime->nexus","prime->vector","vector->prime","prime->cardano","cardano->prime"]),
+};
+const isApexRoute = (from,to) => APEX.routes.has(from+"->"+to);
+// Lazy Cardano serialization lib (only loaded when signing a UTXO origin).
+let _CSL=null;
+async function getCSL(){ if(!_CSL) _CSL = await import("https://esm.sh/@emurgo/cardano-serialization-lib-asmjs@14.1.2"); return _CSL; }
 const ALIASES = { BTC:["BTC","cbBTC","BTCB"], WBTC:["WBTC"], ETH:["ETH"], WETH:["WETH"], ADA:["ADA","cbADA"], USDC:["USDC"], USDT:["USDT"] };
 const ONECLICK = "https://1click.chaindefuser.com";
 const SPEND_CAP_USD = 1000;
@@ -410,9 +431,10 @@ const oneClickSubmit = (txHash,dep) => fetch(ONECLICK+"/v0/deposit/submit",{meth
 
 // ---------- heuristic parser (offline fallback) ----------
 const TOKEN_WORDS = {usdc:"USDC",usdt:"USDT",eth:"ETH",weth:"WETH",btc:"BTC",wbtc:"WBTC",cbbtc:"BTC",ada:"ADA",cbada:"ADA",ap3x:"AP3X",bap3x:"AP3X",bnap3x:"AP3X",bitcoin:"BTC",cardano:"ADA"};
-const TOKEN_HOME = {BTC:"base",ADA:"cardano",AP3X:"ap3x"};
+const TOKEN_HOME = {BTC:"base",ADA:"cardano",AP3X:"nexus"};
 const CHAIN_PATTERNS = [
-  [/apex\s*fusion|apexfusion|\bapex\b|\bap3x\b/i,"ap3x"],[/\bbase\b/i,"base"],
+  [/\bprime\b/i,"prime"],[/\bvector\b/i,"vector"],[/\bnexus\b/i,"nexus"],
+  [/apex\s*fusion|apexfusion|\bapex\b|\bap3x\b/i,"nexus"],[/\bbase\b/i,"base"],
   [/\bbsc\b|\bbnb\b|\bbinance\b/i,"bsc"],[/\bcardano\b/i,"cardano"],
 ];
 const chainAt = (s)=>{ for(const [re,k] of CHAIN_PATTERNS) if(re.test(s)) return k; return null; };
@@ -465,18 +487,30 @@ async function claudeParse(raw, key){
 }
 
 // ---------- card state ----------
-let S = { from:"base", tokenIn:"AP3X", to:"ap3x", tokenOut:"AP3X", quote:null, avail:null, busy:false };
+let S = { from:"base", tokenIn:"AP3X", to:"nexus", tokenOut:"AP3X", quote:null, avail:null, busy:false };
 const isFamilyA = (tok) => tok==="AP3X";
-const meshDest = (to) => to in MESH.eids;
+const meshDest = (to) => (to==="base"||to==="bsc"||to==="nexus");
+const originIsUtxo = () => CHAINS[S.from].evm===false;
 function railFor(){
-  if (isFamilyA(S.tokenIn) || S.to==="ap3x") {
-    if (!isFamilyA(S.tokenIn)) return {err:"Only AP3X bridges to Apex Fusion — pick AP3X or another destination."};
-    if (!meshDest(S.to)) return {err:"AP3X moves between Base, BNB Chain and Apex Fusion."};
+  // Rail C first — Apex Fusion internal pairs (Skyline native bridge).
+  if (isApexRoute(S.from, S.to)) {
+    if (S.tokenIn!=="AP3X" && S.tokenIn!=="ADA")
+      return {err:"Apex Fusion internal transfers move AP3X (or ADA on the Cardano leg)."};
+    return {rail:"C"};
+  }
+  // An Apex internal chain involved but not an enabled pair.
+  if ((originIsUtxo()||S.from==="nexus") && CHAINS[S.to].apex)
+    return {err:"That internal route isn't enabled. Supported: Nexus↔Prime, Prime↔Vector, Prime↔Cardano."};
+  // Rail A — AP3X OFT mesh (Base/BNB ↔ Nexus).
+  if (isFamilyA(S.tokenIn) || S.to==="nexus") {
+    if (!isFamilyA(S.tokenIn)) return {err:"Only AP3X bridges to Nexus — pick AP3X or another destination."};
+    if (!meshDest(S.to) || originIsUtxo()) return {err:"AP3X moves between Base, BNB Chain and Nexus."};
     return {rail:"A"};
   }
+  if (originIsUtxo()) return {err:CHAINS[S.from].label+" can only send over Apex Fusion internal routes."};
   return {rail:"B"};
 }
-function availOK(chain,tok){ if(tok==="AP3X"||chain==="ap3x") return true; const a=S.avail; return a&&a[chain]?(a[chain][tok]??false):true; }
+function availOK(chain,tok){ if(tok==="AP3X"||CHAINS[chain].apex) return true; const a=S.avail; return a&&a[chain]?(a[chain][tok]??false):true; }
 
 function renderSelects(){
   const fc=$("fromChain"), ti=$("tokenIn"), tc=$("toChain"), to=$("tokenOut");
@@ -502,14 +536,18 @@ function clearQuote(){ S.quote=null; $("quoteArea").innerHTML=""; $("gateArea").
 function refreshCta(){
   const amountOk = /^\d+(\.\d+)?$/.test($("amount").value) && Number($("amount").value)>0;
   const nonEvm = !CHAINS[S.to].evm;
+  // UTXO origins (prime/vector/cardano) sign with a Cardano wallet in the
+  // executor — they don't need the EVM wallet to quote/confirm.
+  const needEvm = !originIsUtxo();
   const btn = $("cta");
   if (S.busy){ btn.disabled=true; return; }
   if (!S.quote){
-    btn.textContent = "Get quote";
-    btn.disabled = !amountOk || (nonEvm && !$("recipient").value.trim()) || !availOK(S.from,S.tokenIn) || !availOK(S.to,S.tokenOut);
+    btn.textContent = (needEvm && !wallet) ? "Connect wallet" : "Get quote";
+    btn.disabled = (needEvm && !wallet) || !amountOk || (nonEvm && !$("recipient").value.trim()) || !availOK(S.from,S.tokenIn) || !availOK(S.to,S.tokenOut);
   } else {
-    btn.textContent = wallet ? (S.quote.rail==="A"?"Confirm & sign":"Confirm — get deposit address") : "Connect wallet to sign";
-    btn.disabled = !wallet || !gatesSatisfied();
+    const lbl = S.quote.rail==="B" ? "Confirm — get deposit address" : "Confirm & sign";
+    btn.textContent = (needEvm && !wallet) ? "Connect wallet to sign" : lbl;
+    btn.disabled = (needEvm && !wallet) || !gatesSatisfied();
   }
 }
 function gatesSatisfied(){
@@ -529,7 +567,9 @@ async function getQuote(){
     const amount = $("amount").value.trim();
     const r = railFor();
     if (r.err) throw new Error(r.err);
-    if (r.rail==="A") await quoteRailA(amount); else await quoteRailB(amount);
+    if (r.rail==="A") await quoteRailA(amount);
+    else if (r.rail==="C") await quoteRailC(amount);
+    else await quoteRailB(amount);
   } catch(e){
     $("quoteArea").innerHTML = '<div class="err">⛔ '+(e.message||e)+' — nothing was sent.</div>';
   } finally { S.busy=false; refreshCta(); }
@@ -549,6 +589,27 @@ async function quoteRailA(amount){
     recipient, usdIn:null, eta:"~2 min",
     needRecipientConfirm: wallet && recipient.toLowerCase()!==wallet.toLowerCase() && !book()[recipient.toLowerCase()],
     plan:{eid:MESH.eids[S.to], amt:amt.toString(), min:min.toString()},
+  };
+  renderQuote();
+}
+async function quoteRailC(amount){
+  let recipient = $("recipient").value.trim();
+  if(!recipient){ if(CHAINS[S.to].evm && wallet) recipient=wallet; else throw new Error(CHAINS[S.to].label+" needs a recipient address"); }
+  // Quote through the app backend (the Skyline API is CORS-locked).
+  const intent = { action:"bridge", tokenIn:S.tokenIn, tokenOut:null, amount, amountSide:"in",
+    fromChain:S.from, toChain:S.to, recipient, confidence:1, clarifyingQuestion:null };
+  const res = await fetch(APEX.backend+"/api/quote",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({intent, sender: wallet||undefined})});
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error||"Skyline quote failed");
+  const c = data.card, plan = data.planC;
+  S.quote = {
+    rail:"C", amountIn:c.amountIn, estOut:c.estOut, minOut:c.minOut,
+    feeText: c.fees.map(f=>f.value).join(" + "), recipient: c.recipient, usdIn:null,
+    eta: c.etaSeconds?("~"+Math.round(c.etaSeconds/60)+" min"):"~ minutes",
+    tokenOutLabel: c.tokenOut,
+    needRecipientConfirm: !book()[recipient.toLowerCase()],
+    planC: plan,
   };
   renderQuote();
 }
@@ -576,12 +637,15 @@ async function quoteRailB(amount){
 }
 function renderQuote(){
   const q=S.quote;
+  const outLbl = q.tokenOutLabel || tokenLabel(S.to,S.tokenOut);
+  const railName = q.rail==="A"?"LayerZero OFT":q.rail==="C"?"Skyline (Apex Fusion)":"NEAR Intents (1-Click)";
+  const feeLbl = q.rail==="A"?"LayerZero fee":q.rail==="C"?"Bridge fees":"Fees";
   $("estOut").textContent=q.estOut; $("estOut").classList.add("live");
   $("quoteArea").innerHTML = `<div class="quote-rows">
-    <div class="qrow"><span class="k">Route</span><span class="v"><span class="rail-tag ${q.rail}">${q.rail==="A"?"LayerZero OFT":"NEAR Intents (1-Click)"}</span></span></div>
-    <div class="qrow"><span class="k">Est. received</span><span class="v good">${q.estOut} ${tokenLabel(S.to,S.tokenOut)}</span></div>
-    <div class="qrow"><span class="k">Min received</span><span class="v">${q.minOut} ${tokenLabel(S.to,S.tokenOut)}</span></div>
-    <div class="qrow"><span class="k">${q.rail==="A"?"LayerZero fee":"Fees"}</span><span class="v">${q.feeText}</span></div>
+    <div class="qrow"><span class="k">Route</span><span class="v"><span class="rail-tag ${q.rail}">${railName}</span></span></div>
+    <div class="qrow"><span class="k">Est. received</span><span class="v good">${q.estOut} ${outLbl}</span></div>
+    <div class="qrow"><span class="k">Min received</span><span class="v">${q.minOut} ${outLbl}</span></div>
+    <div class="qrow"><span class="k">${feeLbl}</span><span class="v">${q.feeText}</span></div>
     <div class="qrow"><span class="k">ETA</span><span class="v">${q.eta}</span></div>
     <div class="qrow"><span class="k">Recipient</span><span class="v">${q.recipient===DRY_REFUND?"(connect wallet)":q.recipient}${wallet&&q.recipient.toLowerCase()===wallet.toLowerCase()?" (you)":""}</span></div>
     ${q.usdIn!=null?`<div class="qrow"><span class="k">Value</span><span class="v">≈ $${q.usdIn.toFixed(2)}</span></div>`:""}
@@ -597,15 +661,95 @@ function renderQuote(){
 
 // ---------- execution ----------
 async function confirm_(){
-  const q=S.quote; if(!q||!wallet) return;
+  const q=S.quote; if(!q) return;
+  if(!wallet && !originIsUtxo()) return; // EVM origins need the EVM wallet
   S.busy=true; refreshCta();
   try{
-    if(q.rail==="A") await execRailA(); else await execRailB();
+    if(q.rail==="A") await execRailA();
+    else if(q.rail==="C") await execRailC();
+    else await execRailB();
   } catch(e){
     showPanel(`<div class="err">⛔ ${(e.message||e).toString().slice(0,220)} — your funds never left your wallet.</div>`);
   } finally { S.busy=false; refreshCta(); }
 }
 function showPanel(html){ const p=$("execPanel"); p.innerHTML=html; p.classList.remove("hidden"); }
+
+// ---- Rail C: Apex Fusion internal (Skyline native bridge via backend) ----
+const APEX_EXPLAIN={Pending:"Submitted — waiting for the validators…",DiscoveredOnSource:"Seen on the source chain…",SubmittedToBridge:"Accepted by the validators…",IncludedInBatch:"Batched for the destination…",SubmittedToDestination:"Submitting on the destination…",ExecutedOnDestination:"Done — funds delivered.",InvalidRequest:"Rejected — refund follows if funds left.",FailedToExecuteOnDestination:"Failed on destination — refund in progress."};
+const APEX_TERMINAL=["ExecutedOnDestination","InvalidRequest","FailedToExecuteOnDestination"];
+async function apexSubmitTrack(plan, originTxHash, txRaw, originExplorer){
+  remember(plan.destinationAddress);
+  const h = addHistory({rail:"C",sum:`${S.quote.amountIn} ${tokenLabel(S.from,"AP3X")} → ${CHAINS[S.to].label}`,state:"submitted",txHash:originTxHash,exp:originExplorer});
+  let id=null;
+  try{
+    const r = await fetch(APEX.backend+"/api/apex/submit",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({originChain:plan.originChain,destinationChain:plan.destinationChain,originTxHash,senderAddress:plan.senderAddress,receiverAddrs:[plan.destinationAddress],amount:plan.amountSmallest,nativeTokenAmount:"0",tokenID:plan.tokenID,txRaw,isFallback:false})});
+    const d = await r.json(); if(r.ok && typeof d.id==="number") id=d.id;
+  }catch(_){}
+  showPanel(`<h2>Execute — Skyline (Apex Fusion)</h2>
+    <div class="status-line"><span class="dot ${id?'pending':'done'}"></span><b id="apexState">Submitted</b></div>
+    <p class="notes" id="apexNote">${id?"Tracking…":"Submitted on the source chain — the Skyline validators relay it to the destination (usually minutes)."}${originTxHash&&originExplorer?` · <a class="link" target="_blank" href="${originExplorer}/tx/${originTxHash}">source tx</a>`:""}</p>`);
+  if(id==null) return;
+  const tick=async()=>{ try{
+    const r=await fetch(APEX.backend+"/api/apex/status?id="+id); const d=await r.json();
+    if(!d.status) return; updHistory(h,d.status);
+    $("apexState").textContent=d.status;
+    $("apexNote").innerHTML=(APEX_EXPLAIN[d.status]||"Working…")+(originTxHash&&originExplorer?` · <a class="link" target="_blank" href="${originExplorer}/tx/${originTxHash}">source tx</a>`:"");
+    if(APEX_TERMINAL.includes(d.status)) clearInterval(t);
+  }catch(_){} };
+  tick(); const t=setInterval(tick,6000);
+}
+async function execRailC(){
+  const q=S.quote, p=q.planC;
+  if(p.kind==="railC-evm"){
+    if(!wallet) throw new Error("Connect your Nexus (EVM) wallet first");
+    remember(p.destinationAddress);
+    await ensureChain(S.from);
+    showPanel(`<h2>Execute — Skyline (Apex Fusion)</h2><div class="status-line"><span class="dot pending"></span>Confirm the bridge in your wallet…</div>`);
+    if(p.approvalTx){ const ah=await eth.request({method:"eth_sendTransaction",params:[{from:wallet,to:p.approvalTx.to,data:p.approvalTx.data,value:p.approvalTx.value||"0x0"}]});
+      // best-effort wait
+      await new Promise(r=>setTimeout(r,4000)); }
+    const txHash=await eth.request({method:"eth_sendTransaction",params:[{from:wallet,to:p.bridgingTx.to,data:p.bridgingTx.data,value:p.bridgingTx.value||"0x0"}]});
+    await apexSubmitTrack(p, txHash, p.bridgingTx.data, CHAINS.nexus.explorer);
+    return;
+  }
+  // UTXO origin (prime/vector/cardano) — CIP-30 + CSL.
+  const cw = listCardanoWallets();
+  if(cw.length===0) throw new Error("No Cardano wallet found — install Eternl, Lace or Vespr (they sign Prime & Vector too)");
+  showPanel(`<h2>Execute — Skyline (Apex Fusion)</h2><div class="eyebrow" style="margin-bottom:8px">Choose your Cardano wallet</div><div id="cwList" class="actions" style="flex-wrap:wrap"></div><div id="cwStatus"></div>`);
+  $("cwList").innerHTML = cw.map((w,i)=>`<button class="btn secondary" data-i="${i}">${w.name}</button>`).join("");
+  [...$("cwList").querySelectorAll("button")].forEach(b=>b.onclick=()=>signCardano(cw[Number(b.dataset.i)].key));
+}
+async function signCardano(key){
+  const q=S.quote, p=q.planC;
+  try{
+    $("cwStatus").innerHTML=`<div class="status-line"><span class="dot pending"></span>Connecting & building…</div>`;
+    const api = await window.cardano[key].enable();
+    const CSL = await getCSL();
+    const hexAddr = await api.getChangeAddress();
+    const sender = CSL.Address.from_hex(hexAddr).to_bech32();
+    const res = await fetch(APEX.backend+"/api/apex/create",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({plan:{...p, senderAddress:sender}})});
+    const data = await res.json(); if(!res.ok) throw new Error(data.error||"create failed");
+    const { txRaw, txHash } = data.tx;
+    $("cwStatus").innerHTML=`<div class="status-line"><span class="dot pending"></span>Sign in your wallet…</div>`;
+    const witHex = await api.signTx(txRaw, true);
+    const tx = CSL.Transaction.from_hex(txRaw), nw = CSL.TransactionWitnessSet.from_hex(witHex);
+    const ws = tx.witness_set(), vk = CSL.Vkeywitnesses.new();
+    const ex=ws.vkeys(); if(ex) for(let i=0;i<ex.len();i++) vk.add(ex.get(i));
+    const ad=nw.vkeys(); if(ad) for(let i=0;i<ad.len();i++) vk.add(ad.get(i));
+    ws.set_vkeys(vk);
+    const aux=tx.auxiliary_data();
+    const signed=(aux?CSL.Transaction.new(tx.body(),ws,aux):CSL.Transaction.new(tx.body(),ws)).to_hex();
+    const submitted = await api.submitTx(signed).catch(()=>txHash);
+    await apexSubmitTrack({...p, senderAddress:sender}, submitted||txHash, txRaw, CHAINS[S.from].explorer);
+  }catch(e){ $("cwStatus").innerHTML=`<div class="err">⛔ ${(e.message||e).toString().slice(0,200)} — your funds never left your wallet.</div>`; }
+}
+function listCardanoWallets(){
+  const c = window.cardano; if(!c) return [];
+  const out=[]; for(const k of Object.keys(c)){ const w=c[k]; if(w && typeof w.enable==="function") out.push({key:k, name:w.name||k}); }
+  return out;
+}
 
 async function execRailA(){
   const q=S.quote;
@@ -693,7 +837,7 @@ async function loadAvailability(){
   try{
     const tokens=await getOneClickTokens();
     const a={};
-    for(const c of SCOPE_CHAINS){ a[c]={}; for(const t of CHAIN_TOKENS[c]){ a[c][t]=(t==="AP3X"||c==="ap3x")?true:!!resolveAsset(tokens,c,t); } }
+    for(const c of SCOPE_CHAINS){ a[c]={}; for(const t of CHAIN_TOKENS[c]){ a[c][t]=(t==="AP3X"||CHAINS[c].apex)?true:!!resolveAsset(tokens,c,t); } }
     S.avail=a; renderSelects();
   }catch(_){/* stay optimistic; quotes re-validate */}
 }
