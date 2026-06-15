@@ -1,23 +1,29 @@
 import {
+  APEX_UTXO_ORIGINS,
   CHAINS,
   CHAIN_TOKENS,
+  isApexRoute,
   normalizeAp3x,
   RAIL_A_TOKENS,
   SCOPE_CHAINS,
   SCOPE_ORIGINS,
+  type ChainKey,
   type RailAToken,
 } from "./chains";
 import { effectiveTokenOut, isComplete, type Intent } from "./intent";
 
 // Deterministic rail selection. Plain code — the LLM has no say here.
 // Re-validates the parser's claims and enforces the product scope:
-// chains Base / BNB / Apex Fusion / Cardano, tokens AP3X USDC USDT ADA ETH BTC.
+//   Rail A  LayerZero OFT mesh   Base / BNB <-> Nexus (AP3X)
+//   Rail B  NEAR Intents 1-Click everything else cross-chain (USDC/USDT/ADA/ETH/BTC)
+//   Rail C  Skyline native API   Apex Fusion internal: Nexus<->Prime, Prime<->Vector, Prime<->Cardano
 
 export type RouteDecision =
-  | { ok: true; rail: "A" | "B"; railLabel: string }
+  | { ok: true; rail: "A" | "B" | "C"; railLabel: string }
   | { ok: false; error: string };
 
 const SCOPE_LABELS = SCOPE_CHAINS.map((c) => CHAINS[c].label).join(", ");
+const APEX_LABELS = "Nexus↔Prime, Prime↔Vector, Prime↔Cardano";
 
 export function routeIntent(intent: Intent): RouteDecision {
   if (!isComplete(intent)) {
@@ -38,16 +44,31 @@ export function routeIntent(intent: Intent): RouteDecision {
       error: `${CHAINS[to]?.label ?? to} isn't supported here. Destinations: ${SCOPE_LABELS}.`,
     };
   }
-  if (!SCOPE_ORIGINS.includes(from)) {
-    if (SCOPE_CHAINS.includes(from)) {
+
+  // ---- Rail C: Apex Fusion internal (Skyline native bridge) ----
+  // Checked FIRST so the internal pairs never fall through to A/B. The token
+  // pair is validated against live /settings in the quote step.
+  if (isApexRoute(from, to)) {
+    if (normalizeAp3x(tokenIn) !== "AP3X" && tokenIn !== "ADA") {
       return {
         ok: false,
-        error: `Sending FROM ${CHAINS[from].label} needs a ${CHAINS[from].label} wallet — not wired yet. You can receive on ${CHAINS[from].label}; sources today: Base and BNB Chain.`,
+        error: `Apex Fusion internal transfers move AP3X (or ADA on the Cardano leg) — not ${tokenIn}.`,
       };
     }
+    return { ok: true, rail: "C", railLabel: "Skyline (Apex Fusion)" };
+  }
+  // An Apex internal chain involved, but not one of the supported pairs.
+  if ((APEX_UTXO_ORIGINS.includes(from) || from === "nexus") && CHAINS[to].apexId) {
     return {
       ok: false,
-      error: `This app sends from Base or BNB Chain only (you asked to start from ${CHAINS[from]?.label ?? from}).`,
+      error: `That internal route isn't enabled. Apex Fusion internal transfers: ${APEX_LABELS}.`,
+    };
+  }
+
+  if (!SCOPE_ORIGINS.includes(from)) {
+    return {
+      ok: false,
+      error: `This app can't send from ${CHAINS[from]?.label ?? from}.`,
     };
   }
 
@@ -55,6 +76,15 @@ export function routeIntent(intent: Intent): RouteDecision {
     return {
       ok: false,
       error: `Source and destination are both ${CHAINS[from].label} — same-chain swaps aren't supported. Destinations: ${SCOPE_LABELS}.`,
+    };
+  }
+
+  // Origins for Rail A/B are the EVM externals (Base/BNB). Apex chains only
+  // originate Rail C (handled above).
+  if (from !== "base" && from !== "bsc") {
+    return {
+      ok: false,
+      error: `${CHAINS[from].label} can only send over Apex Fusion internal routes (${APEX_LABELS}).`,
     };
   }
 
@@ -68,20 +98,20 @@ export function routeIntent(intent: Intent): RouteDecision {
     };
   }
 
-  // Rail A: the AP3X OFT mesh — bAP3X (Base) ↔ bnAP3X (BNB) ↔ AP3X (Apex).
+  // ---- Rail A: the AP3X OFT mesh — bAP3X (Base) ↔ bnAP3X (BNB) ↔ Nexus (AP3X) ----
   const isFamilyA = RAIL_A_TOKENS.includes(tokenIn as RailAToken);
-  if (isFamilyA || to === "ap3x") {
+  if (isFamilyA || to === "ap3x" || to === "nexus") {
     if (!isFamilyA) {
       return {
         ok: false,
-        error: `Only AP3X (bAP3X / bnAP3X) bridges to Apex Fusion today — ${tokenIn} isn't supported on that route.`,
+        error: `Only AP3X (bAP3X / bnAP3X) bridges to Nexus today — ${tokenIn} isn't supported on that route.`,
       };
     }
-    const MESH: typeof to[] = ["base", "bsc", "ap3x"];
+    const MESH: ChainKey[] = ["base", "bsc", "ap3x", "nexus"];
     if (!MESH.includes(to)) {
       return {
         ok: false,
-        error: "AP3X moves between Base, BNB Chain and Apex Fusion (LayerZero OFT mesh).",
+        error: "AP3X moves between Base, BNB Chain and Nexus (LayerZero OFT mesh).",
       };
     }
     if (normalizeAp3x(tokenOut) !== "AP3X") {
@@ -93,7 +123,7 @@ export function routeIntent(intent: Intent): RouteDecision {
     return { ok: true, rail: "A", railLabel: "LayerZero OFT" };
   }
 
-  // Rail B: every other in-scope pair rides NEAR Intents.
+  // ---- Rail B: every other in-scope pair rides NEAR Intents ----
   if (CHAINS[to].oneClickId) {
     return { ok: true, rail: "B", railLabel: "NEAR Intents (1-Click)" };
   }

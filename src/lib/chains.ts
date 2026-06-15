@@ -4,6 +4,9 @@
 export type ChainKey =
   | "base"
   | "ap3x"
+  | "prime"
+  | "vector"
+  | "nexus"
   | "near"
   | "ethereum"
   | "arbitrum"
@@ -18,6 +21,9 @@ export type ChainKey =
 export const CHAIN_KEYS = [
   "base",
   "ap3x",
+  "prime",
+  "vector",
+  "nexus",
   "near",
   "ethereum",
   "arbitrum",
@@ -37,11 +43,17 @@ export type ChainInfo = {
   // Blockchain id used by the 1-Click API token list. Absent => not reachable
   // via Rail B (only ap3x, which is Rail A territory).
   oneClickId?: string;
+  // Skyline native-API chain id (Rail C). Present for prime/vector/nexus/cardano.
+  apexId?: string;
 };
 
 export const CHAINS: Record<ChainKey, ChainInfo> = {
   base: { key: "base", label: "Base", family: "evm", oneClickId: "base" },
   ap3x: { key: "ap3x", label: "Apex Fusion (AP3X)", family: "evm" },
+  // Apex Fusion internal chains (Rail C, Skyline native bridge):
+  prime: { key: "prime", label: "Prime", family: "utxo", apexId: "prime" },
+  vector: { key: "vector", label: "Vector", family: "utxo", apexId: "vector" },
+  nexus: { key: "nexus", label: "Nexus", family: "evm", apexId: "nexus" },
   near: { key: "near", label: "NEAR", family: "other", oneClickId: "near" },
   ethereum: { key: "ethereum", label: "Ethereum", family: "evm", oneClickId: "eth" },
   arbitrum: { key: "arbitrum", label: "Arbitrum", family: "evm", oneClickId: "arb" },
@@ -51,7 +63,9 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
   optimism: { key: "optimism", label: "Optimism", family: "evm", oneClickId: "op" },
   polygon: { key: "polygon", label: "Polygon", family: "evm", oneClickId: "pol" },
   avalanche: { key: "avalanche", label: "Avalanche", family: "evm", oneClickId: "avax" },
-  cardano: { key: "cardano", label: "Cardano", family: "utxo", oneClickId: "cardano" },
+  // Cardano serves double duty: a NEAR-Intents destination (Rail B) AND an
+  // Apex-internal endpoint for prime<->cardano (Rail C).
+  cardano: { key: "cardano", label: "Cardano", family: "utxo", oneClickId: "cardano", apexId: "cardano" },
 };
 
 // ---------------------------------------------------------------------------
@@ -97,7 +111,10 @@ export const AP3X_MESH: Partial<
     eid: 30102,
     label: "bnAP3X",
   },
-  ap3x: { oft: BAP3X_OFT_BASE, eid: AP3X_LZ_EID, label: "AP3X" }, // dest-only
+  // The LayerZero "AP3X" destination IS Nexus (eid 30384, confirmed by the
+  // Skyline /settings layerZeroChains data). `ap3x` kept as a back-compat alias.
+  nexus: { oft: BAP3X_OFT_BASE, eid: AP3X_LZ_EID, label: "AP3X" },
+  ap3x: { oft: BAP3X_OFT_BASE, eid: AP3X_LZ_EID, label: "AP3X" },
 };
 
 // USDC has no OFT route to Apex Fusion (no adapter deployed) — it bridges
@@ -121,9 +138,24 @@ export function normalizeAp3x(token: string): string {
 // understands the wider world; the router and UI enforce this scope.
 // ---------------------------------------------------------------------------
 
-export const SCOPE_CHAINS: ChainKey[] = ["base", "bsc", "ap3x", "cardano"];
-// Chains the user can SEND FROM (EVM, signable with the connected wallet).
-export const SCOPE_ORIGINS: ChainKey[] = ["base", "bsc"];
+export const SCOPE_CHAINS: ChainKey[] = [
+  "base",
+  "bsc",
+  "nexus",
+  "prime",
+  "vector",
+  "cardano",
+];
+// Chains the user can SEND FROM. base/bsc sign EVM (Rail A/B); nexus signs EVM
+// (Rail C); prime/vector/cardano sign with a Cardano CIP-30 wallet (Rail C).
+export const SCOPE_ORIGINS: ChainKey[] = [
+  "base",
+  "bsc",
+  "nexus",
+  "prime",
+  "vector",
+  "cardano",
+];
 export const SCOPE_TOKENS = [
   "AP3X",
   "USDC",
@@ -145,13 +177,20 @@ export const CHAIN_TOKENS: Record<string, ScopeToken[]> = {
   base: ["AP3X", "USDC", "ETH", "WETH", "BTC", "WBTC", "ADA"],
   bsc: ["AP3X", "USDC", "USDT", "ADA", "WETH", "WBTC"],
   ap3x: ["AP3X"],
-  cardano: ["ADA"],
+  // Apex Fusion internal chains (Rail C). AP3X is the ecosystem token; cardano
+  // also carries ADA (its native asset, used by Rail B and prime<->cardano).
+  nexus: ["AP3X"],
+  prime: ["AP3X"],
+  vector: ["AP3X"],
+  cardano: ["ADA", "AP3X"],
 };
 
 // How a scope token is labeled on a given chain (wrapped representations).
 export const TOKEN_DISPLAY: Partial<Record<ChainKey, Partial<Record<ScopeToken, string>>>> = {
   base: { BTC: "cbBTC", ADA: "cbADA", AP3X: "bAP3X" },
   bsc: { ADA: "ADA (BEP-20)", AP3X: "bnAP3X" },
+  nexus: { AP3X: "AP3X" },
+  cardano: { AP3X: "cAP3X" }, // wrapped AP3X on Cardano (Rail C)
 };
 
 export function tokenLabel(chain: ChainKey, token: ScopeToken): string {
@@ -162,7 +201,72 @@ export function tokenLabel(chain: ChainKey, token: ScopeToken): string {
 export const EVM_CHAIN_IDS: Partial<Record<ChainKey, number>> = {
   base: 8453,
   bsc: 56,
+  nexus: 9069, // Apex Fusion Nexus (verified via eth_chainId)
 };
+
+// ---------------------------------------------------------------------------
+// Rail C — Apex Fusion internal (Skyline native bridge API)
+//
+// The official backend. CORS is allowlisted to skylinebridge.tech only, so
+// browser-direct calls are impossible — every Rail C call is proxied through
+// this app's /api/apex/* routes (server-side, no CORS). That's why Rail C is
+// available in the Next.js app but not the static standalone build.
+// ---------------------------------------------------------------------------
+
+export const SKYLINE_API =
+  process.env.SKYLINE_API || "https://web-api.mainnet.skylinebridge.tech";
+
+// Ecosystem token ids, from /settings. AP3X is the native ecosystem token.
+export const APEX_TOKEN_IDS: Record<string, number> = {
+  AP3X: 1,
+  ADA: 2,
+  cAP3X: 3,
+  xADA: 4,
+};
+
+// Smallest-unit decimals by VM family: Cardano UTXO chains use 6 (lovelace),
+// the Nexus EVM chain uses 18.
+export function apexDecimals(chain: ChainKey): number {
+  return CHAINS[chain].family === "evm" ? 18 : 6;
+}
+
+// Nexus EVM network params for wallet_addEthereumChain.
+export const NEXUS_EVM = {
+  chainIdHex: "0x236d", // 9069
+  chainName: "Apex Fusion Nexus",
+  nativeCurrency: { name: "AP3X", symbol: "AP3X", decimals: 18 },
+  rpcUrls: ["https://rpc.nexus.mainnet.apexfusion.org/"],
+  blockExplorerUrls: ["https://explorer.nexus.mainnet.apexfusion.org"],
+};
+
+// Explorers for Rail C status deep-links.
+export const APEX_EXPLORERS: Partial<Record<ChainKey, string>> = {
+  nexus: "https://explorer.nexus.mainnet.apexfusion.org",
+  prime: "https://explorer.prime.mainnet.apexfusion.org",
+  vector: "https://explorer.vector.mainnet.apexfusion.org",
+  cardano: "https://cardanoscan.io",
+};
+
+// The internal routes this app exposes (the requested scope, bidirectional):
+//   Nexus <-> Prime, Prime <-> Vector, Prime <-> Cardano.
+// Other Skyline-supported internal pairs (e.g. Vector<->Nexus) are intentionally
+// left out of scope; LayerZero (Rail A) and NEAR Intents (Rail B) are untouched.
+export const APEX_ROUTES: ReadonlySet<string> = new Set([
+  "nexus->prime",
+  "prime->nexus",
+  "prime->vector",
+  "vector->prime",
+  "prime->cardano",
+  "cardano->prime",
+]);
+
+export function isApexRoute(from: ChainKey, to: ChainKey): boolean {
+  return APEX_ROUTES.has(`${from}->${to}`);
+}
+
+// Chains a Rail C transfer can originate from, by signer family.
+export const APEX_EVM_ORIGINS: ChainKey[] = ["nexus"];
+export const APEX_UTXO_ORIGINS: ChainKey[] = ["prime", "vector", "cardano"];
 
 // ---------------------------------------------------------------------------
 // Safety

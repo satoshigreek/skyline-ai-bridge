@@ -6,7 +6,8 @@ import { IntentSchema, type Intent } from "./intent";
 
 export const PARSE_SYSTEM = `You translate a user's plain-English request into a structured cross-chain intent for a bridge app whose home chain is Base.
 
-Chains: base, ap3x (Apex Fusion), near, ethereum, arbitrum, solana, bitcoin, bsc, optimism, polygon, avalanche, cardano.
+Chains: base, bsc, nexus (Apex Fusion EVM — "Apex Fusion"/"Apex"/"AP3X chain" map here), prime, vector (Apex Fusion Cardano-VM chains), cardano, near, ethereum, arbitrum, solana, bitcoin, optimism, polygon, avalanche.
+Apex Fusion internal transfers run between nexus/prime/vector/cardano (e.g. "Nexus to Prime", "Prime to Vector", "Prime to Cardano").
 Common tokens: USDC, USDT, DAI, ETH, WETH, BTC, NEAR, SOL, ADA, AP3X, bAP3X.
 
 Rules:

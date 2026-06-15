@@ -9,7 +9,7 @@ import type { OneClickQuote, OneClickToken } from "./oneclick";
 // the same function — they cannot diverge (tests/equivalence.test.ts asserts it).
 
 export type CardModel = {
-  rail: "A" | "B";
+  rail: "A" | "B" | "C";
   railLabel: string;
   fromChain: string;
   toChain: string;
@@ -39,6 +39,36 @@ export type RailBTransferPlan = {
     symbol: string;
   };
 };
+
+// Rail C plans. UTXO origins (prime/vector/cardano) build a Cardano txRaw to
+// be signed via CIP-30; the Nexus EVM origin builds an ethTx signed via the
+// EVM wallet. The signed source tx is then registered for tracking.
+export type RailCCardanoPlan = {
+  kind: "railC-cardano";
+  originChain: string; // apexId
+  destinationChain: string;
+  destinationAddress: string;
+  senderAddress: string;
+  amountSmallest: string;
+  tokenID: number;
+  bridgingFee: string;
+  operationFee: string;
+};
+export type RailCEvmPlan = {
+  kind: "railC-evm";
+  chainId: number; // Nexus = 9069
+  originChain: string;
+  destinationChain: string;
+  destinationAddress: string;
+  senderAddress: string;
+  amountSmallest: string;
+  tokenID: number;
+  approvalTx: { to: string; data: string; value: string | null } | null;
+  bridgingTx: { to: string; data: string; value: string | null };
+  bridgingFee: string;
+  operationFee: string;
+};
+export type RailCPlan = RailCCardanoPlan | RailCEvmPlan;
 
 // ---------------------------------------------------------------------------
 // Rail A: card + plan from the same RailAPlan + fee
@@ -139,4 +169,64 @@ export function buildRailBCard(
     : null;
 
   return { card, plan };
+}
+
+// ---------------------------------------------------------------------------
+// Rail C: Apex Fusion internal (Skyline native bridge). Card + plan from the
+// same fee/build response. Native bridge is 1:1 minus the bridging+operation
+// fee deducted from the bridged amount (no slippage).
+// ---------------------------------------------------------------------------
+
+function railCFeeToken(originChain: import("./chains").ChainKey): string {
+  return originChain === "cardano" ? "ADA" : "AP3X";
+}
+
+export function buildRailCCard(
+  intent: Intent,
+  plan: RailCPlan,
+  decimals: number,
+  sourceTxFee?: string, // Cardano source-chain tx fee, in origin smallest units
+): CardModel {
+  const from = intent.fromChain!;
+  const to = intent.toChain!;
+  const feeToken = railCFeeToken(from);
+  const amount = BigInt(plan.amountSmallest);
+  const bridgingFee = BigInt(plan.bridgingFee || "0");
+  const operationFee = BigInt(plan.operationFee || "0");
+  const received = amount - bridgingFee - operationFee;
+  const minOut = received < 0n ? 0n : received;
+
+  const fees: Array<{ label: string; value: string }> = [
+    { label: "Bridging fee", value: `${fromSmallestUnits(bridgingFee, decimals)} ${feeToken}` },
+  ];
+  if (operationFee > 0n) {
+    fees.push({ label: "Operation fee", value: `${fromSmallestUnits(operationFee, decimals)} ${feeToken}` });
+  }
+  if (sourceTxFee && BigInt(sourceTxFee) > 0n) {
+    fees.push({ label: "Source tx fee", value: `${fromSmallestUnits(sourceTxFee, decimals)} ${feeToken}` });
+  }
+
+  const inLabel = from === "cardano" && intent.tokenIn === "AP3X" ? "cAP3X" : intent.tokenIn!;
+  const outLabel = to === "cardano" && intent.tokenIn === "AP3X" ? "cAP3X" : intent.tokenIn!;
+
+  return {
+    rail: "C",
+    railLabel: "Skyline (Apex Fusion)",
+    fromChain: CHAINS[from].label,
+    toChain: CHAINS[to].label,
+    tokenIn: inLabel,
+    tokenOut: outLabel,
+    amountIn: fromSmallestUnits(amount, decimals),
+    estOut: fromSmallestUnits(minOut, decimals),
+    minOut: fromSmallestUnits(minOut, decimals),
+    fees,
+    etaSeconds: 600, // native bridge batches; minutes
+    recipient: plan.destinationAddress,
+    usdIn: null,
+    notes: [
+      from === "nexus" || to === "nexus"
+        ? "Crosses Nexus (EVM) ↔ Cardano-VM inside Apex Fusion via the Skyline validators."
+        : "Native Skyline transfer inside Apex Fusion.",
+    ],
+  };
 }

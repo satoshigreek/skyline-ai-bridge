@@ -13,7 +13,7 @@ import {
   type ScopeToken,
 } from "@/lib/chains";
 import type { Intent } from "@/lib/intent";
-import type { CardModel, RailBTransferPlan } from "@/lib/build";
+import type { CardModel, RailBTransferPlan, RailCPlan } from "@/lib/build";
 import type { SerializedRailAPlan } from "@/lib/oft";
 import { isKnownRecipient } from "@/lib/history";
 
@@ -33,7 +33,7 @@ export type Prefill = Partial<{
 type QuoteState =
   | { k: "idle" }
   | { k: "loading" }
-  | { k: "ready"; rail: "A" | "B"; card: CardModel; planA: SerializedRailAPlan | null }
+  | { k: "ready"; rail: "A" | "B" | "C"; card: CardModel; planA: SerializedRailAPlan | null; planC: RailCPlan | null }
   | { k: "needRecipient"; message: string }
   | { k: "error"; message: string };
 
@@ -62,18 +62,20 @@ export function TransferCard({
   prefill,
   onExecuteA,
   onExecuteB,
+  onExecuteC,
   onBusyError,
 }: {
   wallet: Address | undefined;
   prefill: Prefill | null;
   onExecuteA: (card: CardModel, planA: SerializedRailAPlan) => void;
   onExecuteB: (card: CardModel, planB: RailBTransferPlan) => void;
+  onExecuteC: (card: CardModel, planC: RailCPlan, originChain: ChainKey) => void;
   onBusyError: (msg: string) => void;
 }) {
   const [fromChain, setFromChain] = useState<ChainKey>("base");
   const [tokenIn, setTokenIn] = useState<ScopeToken>("AP3X");
   const [amount, setAmount] = useState("");
-  const [toChain, setToChain] = useState<ChainKey>("ap3x");
+  const [toChain, setToChain] = useState<ChainKey>("nexus");
   const [tokenOut, setTokenOut] = useState<ScopeToken>("AP3X");
   const [recipient, setRecipient] = useState("");
   const [quote, setQuote] = useState<QuoteState>({ k: "idle" });
@@ -109,11 +111,19 @@ export function TransferCard({
       amountSide: "in",
       fromChain,
       toChain,
-      recipient: recipient.trim() || null,
+      // EVM destinations default to the connected EVM wallet; non-EVM dests
+      // (prime/vector/cardano) require an explicit address.
+      recipient:
+        recipient.trim() ||
+        (CHAINS[toChain].family === "evm" && wallet ? wallet : null),
       confidence: 1,
       clarifyingQuestion: null,
     };
-  }, [fromChain, tokenIn, tokenOut, amount, amountOk, toChain, recipient]);
+  }, [fromChain, tokenIn, tokenOut, amount, amountOk, toChain, recipient, wallet]);
+
+  // base/bsc/nexus sign with the EVM wallet; prime/vector/cardano sign with a
+  // CIP-30 Cardano wallet (handled inside the Rail C executor).
+  const originIsUtxo = CHAINS[fromChain].family === "utxo";
 
   // Keep tokenOut coherent when chain/token selections change.
   useEffect(() => {
@@ -162,19 +172,27 @@ export function TransferCard({
         return;
       }
       if (!res.ok) throw new Error(data.error || "Quote failed.");
-      setQuote({ k: "ready", rail: data.rail, card: data.card, planA: data.planA ?? null });
+      setQuote({ k: "ready", rail: data.rail, card: data.card, planA: data.planA ?? null, planC: data.planC ?? null });
     } catch (e) {
       setQuote({ k: "error", message: e instanceof Error ? e.message : "Quote failed." });
     }
   }
 
   async function confirm() {
-    if (quote.k !== "ready" || !wallet) return;
+    if (quote.k !== "ready") return;
     const { card } = quote;
     if (quote.rail === "A" && quote.planA) {
+      if (!wallet) return;
       onExecuteA(card, quote.planA);
       return;
     }
+    if (quote.rail === "C" && quote.planC) {
+      // Rail C executor connects the right wallet (EVM for Nexus, CIP-30 for
+      // prime/vector/cardano) — no EVM wallet required up front for UTXO origins.
+      onExecuteC(card, quote.planC, fromChain);
+      return;
+    }
+    if (!wallet) return;
     setExecuting(true);
     try {
       const capNeeded = card.usdIn != null && card.usdIn > SPEND_CAP_USD;
@@ -206,18 +224,24 @@ export function TransferCard({
   const recipientNeedsConfirm = q != null && !recipientIsSelf && !isKnownRecipient(q.card.recipient);
   const recipientSatisfied = !recipientNeedsConfirm || recipientAccepted;
 
-  const ctaLabel = !wallet
-    ? "Connect wallet"
-    : quote.k !== "ready"
-      ? "Get quote"
-      : executing
-        ? "Preparing…"
-        : q!.rail === "A"
-          ? "Confirm & sign"
-          : "Confirm — get deposit address";
+  // UTXO origins don't need the EVM wallet to quote/confirm (Cardano wallet is
+  // connected inside the executor). EVM origins do.
+  const needEvmWallet = !originIsUtxo;
+  const ctaLabel =
+    needEvmWallet && !wallet
+      ? "Connect wallet"
+      : quote.k !== "ready"
+        ? "Get quote"
+        : executing
+          ? "Preparing…"
+          : q!.rail === "A"
+            ? "Confirm & sign"
+            : q!.rail === "C"
+              ? "Confirm & sign"
+              : "Confirm — get deposit address";
 
   function ctaClick() {
-    if (!wallet) return;
+    if (needEvmWallet && !wallet) return;
     if (quote.k !== "ready") void getQuote();
     else void confirm();
   }
@@ -400,7 +424,7 @@ export function TransferCard({
         <button
           className="btn cta"
           disabled={
-            !wallet ||
+            (needEvmWallet && !wallet) ||
             !amountOk ||
             !avail(availability, fromChain, tokenIn) ||
             !avail(availability, toChain, tokenOut) ||

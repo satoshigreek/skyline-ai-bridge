@@ -8,7 +8,7 @@ describe("heuristic parser", () => {
     expect(i.tokenIn).toBe("USDC");
     expect(i.amount).toBe("250");
     expect(i.fromChain).toBe("base");
-    expect(i.toChain).toBe("ap3x");
+    expect(i.toChain).toBe("nexus");
     expect(i.clarifyingQuestion).toBeNull();
   });
 
@@ -38,7 +38,7 @@ describe("heuristic parser", () => {
     const i = heuristicParse(
       "Send 100 bAP3X to 0x1111111111111111111111111111111111111111 on AP3X",
     );
-    expect(i.toChain).toBe("ap3x");
+    expect(i.toChain).toBe("nexus");
     expect(i.fromChain).toBe("base");
     expect(i.recipient).toBe("0x1111111111111111111111111111111111111111");
   });
@@ -48,10 +48,20 @@ describe("heuristic parser", () => {
     expect(i.clarifyingQuestion).toMatch(/how much/i);
   });
 
+  it("parses Apex Fusion internal routes (Rail C)", () => {
+    const a = heuristicParse("move 10 AP3X from Nexus to Prime");
+    expect(a.fromChain).toBe("nexus");
+    expect(a.toChain).toBe("prime");
+    expect(a.tokenIn).toBe("AP3X");
+    const b = heuristicParse("bridge 5 ap3x from prime to vector");
+    expect(b.fromChain).toBe("prime");
+    expect(b.toChain).toBe("vector");
+  });
+
   it("skips non-chain 'to' phrases (cost to move X to apex)", () => {
     const i = heuristicParse("what would it cost to move 75 usdc to apex fusion");
     expect(i.action).toBe("quote_only");
-    expect(i.toChain).toBe("ap3x");
+    expect(i.toChain).toBe("nexus");
     expect(i.amount).toBe("75");
   });
 

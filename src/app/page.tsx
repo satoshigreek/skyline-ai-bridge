@@ -4,18 +4,22 @@ import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import type { Address } from "viem";
-import type { CardModel, RailBTransferPlan } from "@/lib/build";
+import type { CardModel, RailBTransferPlan, RailCPlan } from "@/lib/build";
 import type { SerializedRailAPlan } from "@/lib/oft";
+import type { ChainKey } from "@/lib/chains";
 import { TransferCard, type Prefill } from "@/components/TransferCard";
 import { RailAExecutor } from "@/components/RailAExecutor";
 import { RailBExecutor } from "@/components/RailBExecutor";
+import { RailCExecutor } from "@/components/RailCExecutor";
 import { HistoryList } from "@/components/HistoryList";
 
 type Stage =
   | { k: "card" }
   | { k: "executeA"; card: CardModel; planA: SerializedRailAPlan }
   | { k: "executeB"; card: CardModel; planB: RailBTransferPlan }
-  | { k: "doneB"; state: string; card: CardModel };
+  | { k: "executeC"; card: CardModel; planC: RailCPlan; originChain: ChainKey }
+  | { k: "doneB"; state: string; card: CardModel }
+  | { k: "doneC"; ok: boolean; card: CardModel };
 
 const EXAMPLE = "e.g. bridge 25 AP3X to Apex Fusion · swap 50 USDC for ADA";
 
@@ -66,7 +70,7 @@ export default function Home() {
           <div className="brand-mark">
             Skyline <span>AI Bridge</span>
           </div>
-          <div className="brand-status">LayerZero + NEAR Intents · Live</div>
+          <div className="brand-status">LayerZero · NEAR Intents · Skyline · Live</div>
         </div>
         <ConnectButton showBalance={false} chainStatus="icon" />
       </div>
@@ -95,6 +99,7 @@ export default function Home() {
         prefill={prefill}
         onExecuteA={(card, planA) => { setError(""); setStage({ k: "executeA", card, planA }); }}
         onExecuteB={(card, planB) => { setError(""); setStage({ k: "executeB", card, planB }); }}
+        onExecuteC={(card, planC, originChain) => { setError(""); setStage({ k: "executeC", card, planC, originChain }); }}
         onBusyError={(msg) => setError(msg)}
       />
 
@@ -123,6 +128,16 @@ export default function Home() {
         />
       )}
 
+      {stage.k === "executeC" && (
+        <RailCExecutor
+          plan={stage.planC}
+          card={stage.card}
+          originChainKey={stage.originChain}
+          evmWallet={address as Address | undefined}
+          onTerminal={(ok) => setStage({ k: "doneC", ok, card: stage.card })}
+        />
+      )}
+
       {stage.k === "doneB" && (
         <div className="panel">
           <h2>Result</h2>
@@ -143,7 +158,25 @@ export default function Home() {
         </div>
       )}
 
-      {(stage.k === "executeA" || stage.k === "executeB") && (
+      {stage.k === "doneC" && (
+        <div className="panel">
+          <h2>Result</h2>
+          <div className="status-line">
+            <span className={`dot ${stage.ok ? "done" : "bad"}`} />
+            <b>{stage.ok ? "Delivered" : "Did not complete"}</b>
+          </div>
+          <p className="notes">
+            {stage.ok
+              ? `Delivered ${stage.card.minOut} ${stage.card.tokenOut} to ${stage.card.recipient} on ${stage.card.toChain}.`
+              : "The transfer didn't complete — refunds go automatically to your source wallet."}
+          </p>
+          <div className="actions">
+            <button className="btn secondary" onClick={() => setStage({ k: "card" })}>New transfer</button>
+          </div>
+        </div>
+      )}
+
+      {(stage.k === "executeA" || stage.k === "executeB" || stage.k === "executeC") && (
         <div className="actions">
           <button className="btn secondary small" onClick={() => setStage({ k: "card" })}>
             Back to transfer
@@ -154,7 +187,7 @@ export default function Home() {
       <HistoryList wallet={address} />
 
       <p className="footnote">
-        AP3X · USDC · USDT · ADA · ETH · WETH · BTC · WBTC — Base · BNB · Apex Fusion · Cardano
+        Base · BNB · Nexus · Prime · Vector · Cardano — LayerZero mesh · NEAR Intents · Skyline internal
         <br />
         The AI only proposes · you sign in your own wallet · failures refund automatically
       </p>

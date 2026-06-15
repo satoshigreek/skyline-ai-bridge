@@ -39,15 +39,21 @@ const TOKEN_HOME_CHAIN: Record<string, ChainKey> = {
   BTC: "bitcoin",
   SOL: "solana",
   ADA: "cardano",
-  AP3X: "ap3x",
+  AP3X: "nexus",
   AVAX: "avalanche",
   BNB: "bsc",
 };
 
 // Ordered: more specific phrases first (e.g. "apex fusion" before "base").
 const CHAIN_PATTERNS: Array<[RegExp, ChainKey]> = [
-  // In a from/to/on slot, bare "ap3x" reads as the chain (elsewhere it's the token).
-  [/apex\s*fusion|apexfusion|\bapex\b|\bap3x\b/i, "ap3x"],
+  // Apex Fusion internal chains.
+  [/\bprime\b/i, "prime"],
+  [/\bvector\b/i, "vector"],
+  [/\bnexus\b/i, "nexus"],
+  // "Apex Fusion" / "Apex" / "AP3X" as a from/to/on slot means the Nexus EVM
+  // chain. (chainAt only runs on slot text, so a standalone "ap3x" token mention
+  // elsewhere is still parsed as the token.)
+  [/apex\s*fusion|apexfusion|\bapex\b|\bap3x\b/i, "nexus"],
   [/\bbase\b/i, "base"],
   [/\bnear\s+(protocol|chain|network)\b|\bnear\b/i, "near"],
   [/\bethereum\b|\beth\s+mainnet\b|\bmainnet\b/i, "ethereum"],
@@ -204,7 +210,7 @@ export function heuristicParse(rawPrompt: string): Intent {
     toChain = TOKEN_HOME_CHAIN[tokenOut];
   }
   // bAP3X (Base) / bnAP3X (BNB) bridging defaults toward Apex Fusion.
-  if (!toChain && (tokenIn === "bAP3X" || tokenIn === "bnAP3X")) toChain = "ap3x";
+  if (!toChain && (tokenIn === "bAP3X" || tokenIn === "bnAP3X")) toChain = "nexus";
   if (!fromChain && tokenIn === "bnAP3X") fromChain = "bsc";
 
   let defaultedFrom = false;

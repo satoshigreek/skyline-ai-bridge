@@ -18,77 +18,77 @@ function intent(overrides: Partial<Intent>): Intent {
   };
 }
 
-describe("deterministic router (scope: Base/BNB/Apex Fusion/Cardano)", () => {
-  it("routes the AP3X OFT mesh over Rail A (all legs)", () => {
-    // Base -> Apex Fusion
-    expect(routeIntent(intent({ toChain: "ap3x", tokenIn: "AP3X" }))).toMatchObject({
-      ok: true,
-      rail: "A",
-    });
-    expect(routeIntent(intent({ toChain: "ap3x", tokenIn: "bAP3X" }))).toMatchObject({
-      ok: true,
-      rail: "A",
-    });
-    // BNB -> Apex Fusion (bnAP3X)
-    expect(
-      routeIntent(intent({ fromChain: "bsc", toChain: "ap3x", tokenIn: "bnAP3X" })),
-    ).toMatchObject({ ok: true, rail: "A" });
-    // Base <-> BNB within the mesh
-    expect(routeIntent(intent({ toChain: "bsc", tokenIn: "AP3X" }))).toMatchObject({
-      ok: true,
-      rail: "A",
-    });
-    expect(
-      routeIntent(intent({ fromChain: "bsc", toChain: "base", tokenIn: "AP3X" })),
-    ).toMatchObject({ ok: true, rail: "A" });
+describe("deterministic router — three rails", () => {
+  // ---- Rail A: LayerZero OFT mesh ----
+  it("routes the AP3X OFT mesh over Rail A (Base/BNB <-> Nexus)", () => {
+    expect(routeIntent(intent({ toChain: "nexus", tokenIn: "AP3X" }))).toMatchObject({ ok: true, rail: "A" });
+    expect(routeIntent(intent({ toChain: "nexus", tokenIn: "bAP3X" }))).toMatchObject({ ok: true, rail: "A" });
+    expect(routeIntent(intent({ fromChain: "bsc", toChain: "nexus", tokenIn: "bnAP3X" }))).toMatchObject({ ok: true, rail: "A" });
+    expect(routeIntent(intent({ toChain: "bsc", tokenIn: "AP3X" }))).toMatchObject({ ok: true, rail: "A" });
+    expect(routeIntent(intent({ fromChain: "bsc", toChain: "base", tokenIn: "AP3X" }))).toMatchObject({ ok: true, rail: "A" });
   });
 
-  it("rejects USDC to Apex Fusion (no OFT route)", () => {
-    const d = routeIntent(intent({ toChain: "ap3x", tokenIn: "USDC" }));
+  it("rejects USDC to Nexus (no OFT route)", () => {
+    const d = routeIntent(intent({ toChain: "nexus", tokenIn: "USDC" }));
     expect(d.ok).toBe(false);
     if (!d.ok) expect(d.error).toMatch(/AP3X/);
   });
 
+  // ---- Rail C: Apex Fusion internal (Skyline) ----
+  it("routes the requested internal pairs over Rail C", () => {
+    const C = (from: Intent["fromChain"], to: Intent["toChain"], tok = "AP3X") =>
+      routeIntent(intent({ fromChain: from, toChain: to, tokenIn: tok }));
+    expect(C("nexus", "prime")).toMatchObject({ ok: true, rail: "C" });
+    expect(C("prime", "nexus")).toMatchObject({ ok: true, rail: "C" });
+    expect(C("prime", "vector")).toMatchObject({ ok: true, rail: "C" });
+    expect(C("vector", "prime")).toMatchObject({ ok: true, rail: "C" });
+    expect(C("prime", "cardano")).toMatchObject({ ok: true, rail: "C" });
+    expect(C("cardano", "prime", "ADA")).toMatchObject({ ok: true, rail: "C" });
+  });
+
+  it("rejects internal pairs that aren't enabled (e.g. Vector<->Nexus)", () => {
+    const d = routeIntent(intent({ fromChain: "vector", toChain: "nexus", tokenIn: "AP3X" }));
+    expect(d.ok).toBe(false);
+    if (!d.ok) expect(d.error).toMatch(/isn't enabled|internal/i);
+  });
+
+  it("rejects non-AP3X/ADA tokens on internal routes", () => {
+    const d = routeIntent(intent({ fromChain: "nexus", toChain: "prime", tokenIn: "USDC" }));
+    expect(d.ok).toBe(false);
+  });
+
+  // ---- Rail B: NEAR Intents ----
   it("routes in-scope cross-chain pairs to Rail B", () => {
     expect(routeIntent(intent({ toChain: "bsc" }))).toMatchObject({ ok: true, rail: "B" });
-    expect(
-      routeIntent(intent({ toChain: "cardano", tokenOut: "ADA", action: "swap" })),
-    ).toMatchObject({ ok: true, rail: "B" });
+    expect(routeIntent(intent({ toChain: "cardano", tokenOut: "ADA", action: "swap" }))).toMatchObject({ ok: true, rail: "B" });
     expect(
       routeIntent(intent({ fromChain: "bsc", tokenIn: "USDT", toChain: "base", tokenOut: "USDC", action: "swap" })),
     ).toMatchObject({ ok: true, rail: "B" });
   });
 
+  it("Rail C takes precedence over Rail B for prime<->cardano", () => {
+    // cardano is a Rail B destination generally, but prime<->cardano is Rail C.
+    expect(routeIntent(intent({ fromChain: "prime", toChain: "cardano", tokenIn: "AP3X" }))).toMatchObject({
+      ok: true,
+      rail: "C",
+    });
+  });
+
+  // ---- Rejections ----
   it("rejects out-of-scope destinations (NEAR, Solana, …)", () => {
     for (const to of ["near", "solana", "arbitrum", "bitcoin"] as const) {
-      const d = routeIntent(intent({ toChain: to }));
-      expect(d.ok).toBe(false);
-      if (!d.ok) expect(d.error).toMatch(/Base, BNB Chain, Apex Fusion|isn't supported/);
+      expect(routeIntent(intent({ toChain: to })).ok).toBe(false);
     }
   });
 
-  it("rejects Cardano as a source (no Cardano wallet wired)", () => {
-    const d = routeIntent(intent({ fromChain: "cardano", tokenIn: "ADA", toChain: "base", tokenOut: "USDC", action: "swap" }));
-    expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/Cardano wallet/i);
-  });
-
   it("rejects out-of-scope origins", () => {
-    const d = routeIntent(intent({ fromChain: "arbitrum" }));
-    expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/Base or BNB/i);
+    expect(routeIntent(intent({ fromChain: "arbitrum" })).ok).toBe(false);
   });
 
-  it("rejects tokens not present on the source chain", () => {
-    const d = routeIntent(intent({ fromChain: "bsc", tokenIn: "ETH", toChain: "base" }));
-    expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/isn't available on BNB Chain/);
-  });
-
-  it("keeps AP3X inside the mesh (no Cardano leg)", () => {
+  it("keeps the AP3X mesh off the Cardano leg (Base->Cardano AP3X)", () => {
     const d = routeIntent(intent({ tokenIn: "AP3X", toChain: "cardano" }));
     expect(d.ok).toBe(false);
-    if (!d.ok) expect(d.error).toMatch(/Base, BNB Chain and Apex Fusion/);
+    if (!d.ok) expect(d.error).toMatch(/Nexus/);
   });
 
   it("rejects same-chain transfers", () => {

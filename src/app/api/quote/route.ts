@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http, type Address } from "viem";
 import { base, bsc } from "viem/chains";
-import { CHAINS } from "@/lib/chains";
+import { apexDecimals, CHAINS } from "@/lib/chains";
 import { IntentSchema, isComplete, effectiveTokenOut, type Intent } from "@/lib/intent";
 import { routeIntent } from "@/lib/router";
 import { buildRailAPlan, OFT_ABI, serializeRailAPlan } from "@/lib/oft";
-import { buildRailACard, buildRailBCard } from "@/lib/build";
+import { buildRailACard, buildRailBCard, buildRailCCard, type RailCEvmPlan, type RailCCardanoPlan } from "@/lib/build";
 import { getTokens, requestQuote, resolveAsset } from "@/lib/oneclick";
+import { createEth, getBridgingAddresses, getCardanoTxFee, routeAllowed, srcTokenId } from "@/lib/skyline";
 import { toSmallestUnits } from "@/lib/units";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 
@@ -68,6 +69,112 @@ export async function POST(req: Request) {
         card,
         planA: serializeRailAPlan(built.plan, fee),
       });
+    }
+
+    // ---- Rail C (Apex Fusion internal — Skyline native bridge) ----
+    if (decision.rail === "C") {
+      const from = intent.fromChain!;
+      const to = intent.toChain!;
+      const tokenID = srcTokenId(from, intent.tokenIn!);
+      if (tokenID == null) {
+        return NextResponse.json(
+          { error: `${intent.tokenIn} can't be sent from ${CHAINS[from].label}.` },
+          { status: 422 },
+        );
+      }
+      const allowed = await routeAllowed(from, to, tokenID);
+      if (!allowed.ok) return NextResponse.json({ error: allowed.error }, { status: 422 });
+
+      const recipient = intent.recipient ?? null;
+      if (!recipient) {
+        return NextResponse.json({
+          rail: "C",
+          needsRecipient: true,
+          message: `${CHAINS[to].label} uses its own address format — what address should receive the funds?`,
+        });
+      }
+      // Nexus (EVM) origin needs the connected EVM wallet as sender. UTXO
+      // origins (prime/vector/cardano) can fee-quote with a bridging address as
+      // a stand-in sender — the real Cardano address is supplied by the CIP-30
+      // wallet at execute time.
+      const evmOrigin = CHAINS[from].family === "evm";
+      if (evmOrigin && !sender) {
+        return NextResponse.json(
+          { error: `Connect your ${CHAINS[from].label} (EVM) wallet first — it signs on the source chain.` },
+          { status: 422 },
+        );
+      }
+
+      const decimals = apexDecimals(from);
+      const amountSmallest = toSmallestUnits(intent.amount!, decimals).toString();
+      const apexFrom = CHAINS[from].apexId!;
+      const apexTo = CHAINS[to].apexId!;
+
+      if (CHAINS[from].family === "evm") {
+        // Nexus EVM origin — createEth builds the tx + fees in one call.
+        // sender is guaranteed by the evmOrigin guard above.
+        const evmSender = sender as string;
+        const eth = await createEth({
+          senderAddress: evmSender,
+          originChain: apexFrom,
+          destinationChain: apexTo,
+          destinationAddress: recipient,
+          amount: amountSmallest,
+          tokenID,
+        });
+        const plan: RailCEvmPlan = {
+          kind: "railC-evm",
+          chainId: 9069,
+          originChain: apexFrom,
+          destinationChain: apexTo,
+          destinationAddress: recipient,
+          senderAddress: evmSender,
+          amountSmallest,
+          tokenID,
+          approvalTx: eth.approvalTx
+            ? { to: eth.approvalTx.to, data: eth.approvalTx.data, value: eth.approvalTx.value ?? null }
+            : null,
+          bridgingTx: {
+            to: eth.bridgingTx.ethTx.to,
+            data: eth.bridgingTx.ethTx.data,
+            value: eth.bridgingTx.ethTx.value ?? null,
+          },
+          bridgingFee: eth.bridgingTx.bridgingFee,
+          operationFee: eth.bridgingTx.operationFee,
+        };
+        const card = buildRailCCard(intent, plan, decimals);
+        return NextResponse.json({ rail: "C", card, planC: plan });
+      }
+
+      // UTXO origin (prime / vector / cardano) — fee now, build tx at execute.
+      const feeSender =
+        sender && /^(addr1|addr_test1|stake)/.test(sender)
+          ? sender
+          : (await getBridgingAddresses(apexFrom))[0];
+      if (!feeSender) {
+        return NextResponse.json({ error: `No ${CHAINS[from].label} address available for the fee quote.` }, { status: 502 });
+      }
+      const fee = await getCardanoTxFee({
+        senderAddress: feeSender,
+        originChain: apexFrom,
+        destinationChain: apexTo,
+        destinationAddress: recipient,
+        amount: amountSmallest,
+        tokenID,
+      });
+      const plan: RailCCardanoPlan = {
+        kind: "railC-cardano",
+        originChain: apexFrom,
+        destinationChain: apexTo,
+        destinationAddress: recipient,
+        senderAddress: feeSender, // real Cardano sender substituted at execute
+        amountSmallest,
+        tokenID,
+        bridgingFee: fee.bridgingFee,
+        operationFee: fee.operationFee,
+      };
+      const card = buildRailCCard(intent, plan, decimals, fee.fee);
+      return NextResponse.json({ rail: "C", card, planC: plan });
     }
 
     // ---- Rail B (NEAR Intents) ----

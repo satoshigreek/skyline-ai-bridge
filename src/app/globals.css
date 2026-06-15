@@ -152,6 +152,7 @@ input.rcpt.required { border-color: var(--warn); }
 }
 .rail-tag.A { background: color-mix(in oklch, var(--ember) 16%, transparent); color: var(--base-c); border: 1px solid color-mix(in oklch, var(--ember) 35%, transparent); }
 .rail-tag.B { background: color-mix(in oklch, var(--emerald) 14%, transparent); color: var(--emerald-soft); border: 1px solid color-mix(in oklch, var(--emerald) 35%, transparent); }
+.rail-tag.C { background: color-mix(in oklch, var(--ignition) 16%, transparent); color: var(--ignition); border: 1px solid color-mix(in oklch, var(--ignition) 38%, transparent); }
 
 /* gates */
 .gate {

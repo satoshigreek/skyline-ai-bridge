@@ -17,14 +17,28 @@ Product spec and the original build prompt live in [`docs/SPEC.md`](docs/SPEC.md
 [`docs/BUILD_PROMPT.md`](docs/BUILD_PROMPT.md).
 
 ```
-"Bridge 25 AP3X to Apex Fusion"               -> Rail A (bAP3X LayerZero OFT)
+"Bridge 25 AP3X to Nexus"                     -> Rail A (bAP3X LayerZero OFT mesh)
 "Swap 0.1 ETH on Base for NEAR"               -> Rail B (NEAR Intents 1-Click)
 "Send 50 USDC to alice.near"                  -> Rail B
+"Move 10 AP3X from Nexus to Prime"            -> Rail C (Skyline native bridge)
+"Bridge 5 AP3X from Prime to Vector"          -> Rail C
+"Send 20 AP3X from Prime to Cardano"          -> Rail C
 ```
 
-There is no Skyline API anywhere in the loop — the Apex Fusion route talks
-directly to the **bAP3X LayerZero OFT contract** on Base (verified on-chain),
-and every other destination rides **NEAR Intents**.
+Three execution rails behind one deterministic router (the AI never picks):
+
+| Rail | Path | Mechanism |
+| --- | --- | --- |
+| **A** | Base / BNB ↔ Nexus | bAP3X **LayerZero OFT mesh** (verified on-chain; quoteSend/send) |
+| **B** | Base / BNB ↔ NEAR / Ethereum / Solana / BTC / Cardano … | **NEAR Intents** 1-Click API (deposit address + solvers) |
+| **C** | Apex Fusion internal: **Nexus↔Prime, Prime↔Vector, Prime↔Cardano** | **Skyline native bridge** API (`web-api.mainnet.skylinebridge.tech`) |
+
+Rail C signs with the origin's wallet: **Nexus (EVM, chain 9069)** via the EVM
+wallet, **Prime / Vector / Cardano** via a **CIP-30 Cardano wallet** (Eternl,
+Lace, Vespr — they sign Prime & Vector too). Because the Skyline API is
+CORS-allowlisted to skylinebridge.tech, Rail C is **proxied server-side**
+through `/api/apex/*` — so it works in this Next.js app but not in the
+zero-backend standalone build (which keeps Rails A & B browser-direct).
 
 ## Quick start
 
