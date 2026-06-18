@@ -52,6 +52,26 @@ export type RoutePlan = {
 export type RouteError = { ok: false; error: string };
 export type RouteResult = RoutePlan | RouteError;
 
+// The redesign review card — what the user approves. Built by a rail builder
+// from the SAME validated input as the signed transaction plan; an equivalence
+// test gates every rail (the card ≡ calldata invariant). Names the real
+// settled asset + trust model, per docs/ROUTING_SPEC.md §1.4.
+export type PlanCard = {
+  rail: Rail;
+  fromChain: string;
+  toChain: string;
+  tokenIn: string;
+  tokenOut: string;
+  amountIn: string; // human decimal — exactly what leaves the wallet
+  minOut: string; // human decimal — floor at the destination
+  fees: Array<{ label: string; value: string }>;
+  etaSeconds: number | null;
+  recipient: string;
+  settledAsset: string;
+  trustModel: TrustModel;
+  notes: string[];
+};
+
 // --- edge model: a directed adjacency over issuer-native rails -------------
 
 type Edge = { to: ChainKey; rail: Rail; settles: string; trust: TrustModel; note: string };
