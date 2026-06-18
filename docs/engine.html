@@ -40,8 +40,8 @@
     </div>
     <div style="text-align:right">
       <div class="row" style="justify-content:flex-end;gap:6px">
-        <button id="wallet" style="background:#fff;border:1px solid var(--ember);color:var(--ember)">Connect EVM+ Wallet</button>
-        <button id="walletAda" style="background:#fff;border:1px solid var(--ember);color:var(--ember)">Connect Cardano Wallet</button>
+        <button id="wallet" style="background:var(--ember);border:1px solid var(--ember);color:#fff">Connect EVM+ Wallet</button>
+        <button id="walletAda" style="background:var(--ember);border:1px solid var(--ember);color:#fff">Connect Cardano Wallet</button>
       </div>
       <div id="adaPick" class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"></div>
     </div>
@@ -155,7 +155,7 @@
       var onErr=function(){ var h=document.getElementById("walletHint"); h.style.color="var(--ember)"; h.textContent="Couldn't Connect"; document.getElementById("adaPick").innerHTML=""; };
       if(l.length===0){ refresh(); return; }
       if(l.length===1){ SW.connectCardano(l[0],onErr); return; }
-      document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:#fff;border:1px solid var(--ember);color:var(--ember);font-size:12px">'+n+'</button>';}).join("");
+      document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:var(--ember);border:1px solid var(--ember);color:#fff;font-size:12px">'+n+'</button>';}).join("");
       [].forEach.call(document.getElementById("adaPick").querySelectorAll("button"),function(b){ b.onclick=function(){ SW.connectCardano(b.getAttribute("data-k"),onErr); }; });
     };
   })();
