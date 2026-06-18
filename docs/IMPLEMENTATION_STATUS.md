@@ -16,6 +16,7 @@ Verified here means: `tsc --noEmit` clean, `vitest` green (88 tests), `next buil
 | AP3X builder | `src/lib/ap3x.ts` | OFT mesh + Reactor internal, multi-leg compositions |
 | Dispatcher | `src/lib/engine.ts` | `buildPlan(request)` → routes to the right builder, tagged `{ card, plan }` |
 | API seam | `src/app/api/plan/route.ts` | `POST /api/plan` — zod-validated, rate-limited, returns `{ rail, card, plan }` |
+| Execution steps | `src/lib/execute-plan.ts` | `toWalletSteps(result)` → ordered wallet txs; ERC-20 legs are real calldata, protocol calls are resolved-arg descriptors (ABI `⟨VERIFY⟩`) |
 
 Every rail builds the **review card and the signed plan from one validated input**
 (the card ≡ calldata invariant), each gated by an equivalence test. Builders
@@ -35,15 +36,15 @@ values ship.
    This sandbox has no outbound network/RPC access, so none of these could be
    verified here. They are the single gate before execution.
 
-2. **UI / executor wiring (not verifiable here).** The engine is reachable
-   server-side via `POST /api/plan`, but surfacing its card in the UI and *signing*
-   the returned plans needs a running browser + wallet, which can't be exercised in
-   this environment. The legacy `src/lib/build.ts` (Rail A/B/C) and the
-   `Rail*Executor` components still drive the current app; migrating them onto
-   `/api/plan` → `engine.ts` is the next behavioral increment. (Client executors
-   that call contracts are intentionally NOT written yet — they'd encode the
-   unverified `⟨VERIFY⟩` ABIs, and shipping unconfirmed fund-moving calldata is
-   exactly what this layer avoids.)
+2. **The last mile: ABI binding + UI signing (gated, not fabricated).**
+   `toWalletSteps` produces the ordered transactions; the ERC-20 legs (approvals,
+   the Hyperliquid deposit transfer) are **real, decodable calldata**. What remains
+   is (a) binding the verified protocol ABIs to the `verify-required` descriptors
+   (CCTP `depositForBurn`, xReserve `depositToRemote`, Stargate `send`) and (b)
+   rendering the card + driving the wallet through the steps in the UI — both need
+   a browser + funded wallet this environment doesn't have. AP3X execution already
+   exists (`oft.ts` / `skyline.ts`). The protocol ABIs are intentionally NOT
+   guessed — that is the one thing that must be confirmed on-chain first.
 
 3. **Deferred rail edges:** Solana-side CCTP (non-EVM instructions), Hyperliquid
    withdrawal (reverse), and BNB/Solana origins for Hyperliquid/xReserve. The
