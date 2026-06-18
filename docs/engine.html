@@ -169,18 +169,22 @@
     account=a||null;
     var btn=document.getElementById("wallet"), hint=document.getElementById("walletHint");
     if(account){
-      btn.textContent=short(account);
-      hint.style.color=""; hint.textContent="connected · EVM fields auto-filled";
+      btn.textContent=short(account); btn.title="Click to disconnect";
+      hint.style.color=""; hint.textContent=(cardanoAddr?"EVM + ADA":"EVM")+" connected · fields auto-filled";
       var s=document.getElementById("sender"); if(!s.value) s.value=account;   // xReserve Ethereum signer
       var ac=document.getElementById("account"); if(!ac.value) ac.value=account; // Hyperliquid account
       maybeFillRecipient();
-    } else { btn.textContent="Connect EVM+ Wallet"; hint.textContent=""; }
+    } else {
+      btn.textContent="Connect EVM+ Wallet"; btn.title="";
+      hint.style.color=""; hint.textContent=cardanoAddr?"ADA connected · fields auto-filled":"";
+    }
   }
   if(window.ethereum){
     // If you connected on the classic page, this returns the account with no prompt.
     window.ethereum.request({method:"eth_accounts"}).then(function(a){ if(a&&a[0]) setAccount(a[0]); }).catch(function(){});
     if(window.ethereum.on) window.ethereum.on("accountsChanged", function(a){ setAccount(a&&a[0]); });
     document.getElementById("wallet").onclick=function(){
+      if(account){ try{ window.ethereum.request({method:"wallet_revokePermissions",params:[{eth_accounts:{}}]}).catch(function(){}); }catch(_){}; setAccount(null); return; }
       window.ethereum.request({method:"eth_requestAccounts"}).then(function(a){ if(a&&a[0]) setAccount(a[0]); }).catch(function(){});
     };
   } else {
@@ -194,13 +198,18 @@
     var SW=window.SkylineWallet, ab=document.getElementById("walletAda");
     if(!SW){ ab.textContent="Cardano unavailable"; ab.disabled=true; return; }
     SW.subscribeCardano(function(s){
+      var h=document.getElementById("walletHint");
       if(s.connected && s.usedAddresses && s.usedAddresses[0]){
         cardanoAddr=s.usedAddresses[0];
-        ab.textContent="ADA "+cardanoAddr.slice(0,9)+"…";
+        ab.textContent="ADA "+cardanoAddr.slice(0,9)+"…"; ab.title="Click to disconnect";
         document.getElementById("adaPick").innerHTML="";
-        var h=document.getElementById("walletHint"); h.style.color=""; h.textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
+        h.style.color=""; h.textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
         maybeFillRecipient();
-      } else if(!s.connected){ cardanoAddr=null; }
+      } else if(!s.connected){
+        cardanoAddr=null; ab.title="";
+        if(!ab.disabled) ab.textContent="Connect Cardano Wallet";
+        h.style.color=""; h.textContent=account?"EVM connected · fields auto-filled":"";
+      }
     });
     function refresh(){
       var inst=SW.getInstalledCardanoWallets();
@@ -211,6 +220,7 @@
     }
     refresh(); setTimeout(refresh,900); // catch wallets that inject late
     ab.onclick=function(){
+      if(cardanoAddr){ try{ SW.disconnectCardano(); }catch(_){}; document.getElementById("adaPick").innerHTML=""; return; }
       var l=SW.getInstalledCardanoWallets();
       var onErr=function(){ var h=document.getElementById("walletHint"); h.style.color="var(--ember)"; h.textContent="Couldn't Connect"; document.getElementById("adaPick").innerHTML=""; };
       if(l.length===0){ refresh(); return; }
