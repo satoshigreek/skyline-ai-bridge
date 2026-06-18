@@ -9,7 +9,8 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "test": "vitest run",
-    "eval:parser": "tsx scripts/eval-parser.ts"
+    "eval:parser": "tsx scripts/eval-parser.ts",
+    "build:engine-bundle": "esbuild src/lib/engine-browser.ts --bundle --format=iife --global-name=SkylineEngine --banner:js=\"var process=(typeof process!=='undefined')?process:{env:{}};\" --minify --outfile=docs/engine-bundle.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
