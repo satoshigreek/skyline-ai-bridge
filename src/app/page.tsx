@@ -71,6 +71,7 @@ export default function Home() {
             Skyline <span>AI Bridge</span>
           </div>
           <div className="brand-status">LayerZero · NEAR Intents · Skyline · Live</div>
+          <a className="engine-link" href="/engine">Try the new Cross-Chain Engine →</a>
         </div>
         <ConnectButton showBalance={false} chainStatus="icon" />
       </div>
