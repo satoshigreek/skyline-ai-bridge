@@ -39,7 +39,11 @@
       <div class="sub">CCTP · Hyperliquid · xReserve · Stargate · LayerZero OFT · Reactor — runs in your browser, no backend. <a href="index.html">← classic bridge</a></div>
     </div>
     <div style="text-align:right">
-      <button id="wallet" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect wallet</button>
+      <div class="row" style="justify-content:flex-end;gap:6px">
+        <button id="wallet" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect wallet</button>
+        <button id="walletAda" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect ADA</button>
+      </div>
+      <div id="adaPick" class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"></div>
       <div id="walletHint" class="sub" style="margin-top:4px"></div>
     </div>
   </div>
@@ -90,12 +94,15 @@
   fill();
 
   // ---- wallet: shares the classic page's injected connection (same origin) ----
-  var account=null;
+  var account=null, cardanoAddr=null, _CSL=null;
   var EVM_DEST=["ethereum","base","arbitrum","bsc","nexus","hyperliquid"];
+  var CARDANO_DEST=["cardano","prime","vector"]; // Cardano-addressed destinations
   function short(a){return a.slice(0,6)+"…"+a.slice(-4);}
   function maybeFillRecipient(){
     var r=document.getElementById("recipient");
-    if(account && !r.value && EVM_DEST.indexOf(toEl.value)>=0) r.value=account;
+    if(r.value) return;
+    if(account && EVM_DEST.indexOf(toEl.value)>=0) r.value=account;
+    else if(cardanoAddr && CARDANO_DEST.indexOf(toEl.value)>=0) r.value=cardanoAddr;
   }
   function setAccount(a){
     account=a||null;
@@ -118,6 +125,34 @@
   } else {
     var wb=document.getElementById("wallet"); wb.textContent="No browser wallet"; wb.disabled=true;
   }
+
+  // ---- Cardano (CIP-30) — same approach as the classic page (enable → CSL bech32) ----
+  function getCSL(){ return _CSL || (_CSL=import("https://esm.sh/@emurgo/cardano-serialization-lib-asmjs@14.1.2")); }
+  function listAda(){ var c=window.cardano; if(!c) return []; var o=[]; for(var k in c){ var w=c[k]; if(w&&typeof w.enable==="function") o.push({key:k,name:(w.name||k)}); } return o; }
+  async function connectAda(key){
+    try{
+      var api=await window.cardano[key].enable();
+      var CSL=await getCSL();
+      var hex=await api.getChangeAddress();
+      cardanoAddr=CSL.Address.from_hex(hex).to_bech32();
+      document.getElementById("walletAda").textContent="ADA "+cardanoAddr.slice(0,9)+"…";
+      document.getElementById("adaPick").innerHTML="";
+      document.getElementById("walletHint").textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
+      maybeFillRecipient();
+    }catch(e){ document.getElementById("adaPick").innerHTML='<span class="sub" style="color:var(--ember)">'+(((e&&e.message)||"connect failed")+"").slice(0,80)+'</span>'; }
+  }
+  (function(){
+    var ab=document.getElementById("walletAda");
+    if(listAda().length===0){ ab.textContent="No ADA wallet"; ab.disabled=true; return; }
+    // Silent follow-through: reuse a wallet already enabled on the classic page.
+    listAda().forEach(function(w){ try{ window.cardano[w.key].isEnabled().then(function(on){ if(on&&!cardanoAddr) connectAda(w.key); }).catch(function(){}); }catch(_){ } });
+    ab.onclick=function(){
+      var l=listAda();
+      if(l.length===1){ connectAda(l[0].key); return; }
+      document.getElementById("adaPick").innerHTML=l.map(function(w){return '<button data-k="'+w.key+'" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2);font-size:12px">'+w.name+'</button>';}).join("");
+      [].forEach.call(document.getElementById("adaPick").querySelectorAll("button"),function(b){ b.onclick=function(){ connectAda(b.getAttribute("data-k")); }; });
+    };
+  })();
 
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
 
