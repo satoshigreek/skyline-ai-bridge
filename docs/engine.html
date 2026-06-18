@@ -33,8 +33,16 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">Skyline <span>AI Cross-Chain Engine</span></div>
-  <div class="sub">CCTP · Hyperliquid · xReserve · Stargate · LayerZero OFT · Reactor — runs in your browser, no backend. <a href="index.html">← classic bridge</a></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div>
+      <div class="brand">Skyline <span>AI Cross-Chain Engine</span></div>
+      <div class="sub">CCTP · Hyperliquid · xReserve · Stargate · LayerZero OFT · Reactor — runs in your browser, no backend. <a href="index.html">← classic bridge</a></div>
+    </div>
+    <div style="text-align:right">
+      <button id="wallet" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect wallet</button>
+      <div id="walletHint" class="sub" style="margin-top:4px"></div>
+    </div>
+  </div>
 
   <div class="panel">
     <div class="row">
@@ -77,8 +85,39 @@
       sel.innerHTML = list.map(function(c){return '<option'+((idx===0&&c==="base")||(idx===1&&c===(assetEl.value==="AP3X"?"nexus":"arbitrum"))?' selected':'')+'>'+c+'</option>';}).join("");
     });
   }
-  assetEl.onchange=function(){fill();out.innerHTML="";};
+  assetEl.onchange=function(){fill();out.innerHTML="";maybeFillRecipient();};
+  toEl.onchange=function(){maybeFillRecipient();};
   fill();
+
+  // ---- wallet: shares the classic page's injected connection (same origin) ----
+  var account=null;
+  var EVM_DEST=["ethereum","base","arbitrum","bsc","nexus","hyperliquid"];
+  function short(a){return a.slice(0,6)+"…"+a.slice(-4);}
+  function maybeFillRecipient(){
+    var r=document.getElementById("recipient");
+    if(account && !r.value && EVM_DEST.indexOf(toEl.value)>=0) r.value=account;
+  }
+  function setAccount(a){
+    account=a||null;
+    var btn=document.getElementById("wallet"), hint=document.getElementById("walletHint");
+    if(account){
+      btn.textContent=short(account);
+      hint.textContent="connected · EVM fields auto-filled";
+      var s=document.getElementById("sender"); if(!s.value) s.value=account;   // xReserve Ethereum signer
+      var ac=document.getElementById("account"); if(!ac.value) ac.value=account; // Hyperliquid account
+      maybeFillRecipient();
+    } else { btn.textContent="Connect wallet"; hint.textContent=""; }
+  }
+  if(window.ethereum){
+    // If you connected on the classic page, this returns the account with no prompt.
+    window.ethereum.request({method:"eth_accounts"}).then(function(a){ if(a&&a[0]) setAccount(a[0]); }).catch(function(){});
+    if(window.ethereum.on) window.ethereum.on("accountsChanged", function(a){ setAccount(a&&a[0]); });
+    document.getElementById("wallet").onclick=function(){
+      window.ethereum.request({method:"eth_requestAccounts"}).then(function(a){ if(a&&a[0]) setAccount(a[0]); }).catch(function(){});
+    };
+  } else {
+    var wb=document.getElementById("wallet"); wb.textContent="No browser wallet"; wb.disabled=true;
+  }
 
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
 
