@@ -15,6 +15,7 @@ Verified here means: `tsc --noEmit` clean, `vitest` green (88 tests), `next buil
 | Stargate builder | `src/lib/stargate.ts` | BNB USDC (pool-wrapped) — the lone non-CCTP leg |
 | AP3X builder | `src/lib/ap3x.ts` | OFT mesh + Reactor internal, multi-leg compositions |
 | Dispatcher | `src/lib/engine.ts` | `buildPlan(request)` → routes to the right builder, tagged `{ card, plan }` |
+| API seam | `src/app/api/plan/route.ts` | `POST /api/plan` — zod-validated, rate-limited, returns `{ rail, card, plan }` |
 
 Every rail builds the **review card and the signed plan from one validated input**
 (the card ≡ calldata invariant), each gated by an equivalence test. Builders
@@ -34,11 +35,15 @@ values ship.
    This sandbox has no outbound network/RPC access, so none of these could be
    verified here. They are the single gate before execution.
 
-2. **UI / executor wiring (not verifiable here).** Surfacing `buildPlan` output in
-   the app and signing the plans needs a running browser + wallet, which can't be
-   exercised in this environment. The legacy `src/lib/build.ts` (Rail A/B/C) and the
+2. **UI / executor wiring (not verifiable here).** The engine is reachable
+   server-side via `POST /api/plan`, but surfacing its card in the UI and *signing*
+   the returned plans needs a running browser + wallet, which can't be exercised in
+   this environment. The legacy `src/lib/build.ts` (Rail A/B/C) and the
    `Rail*Executor` components still drive the current app; migrating them onto
-   `engine.ts` is the next behavioral increment.
+   `/api/plan` → `engine.ts` is the next behavioral increment. (Client executors
+   that call contracts are intentionally NOT written yet — they'd encode the
+   unverified `⟨VERIFY⟩` ABIs, and shipping unconfirmed fund-moving calldata is
+   exactly what this layer avoids.)
 
 3. **Deferred rail edges:** Solana-side CCTP (non-EVM instructions), Hyperliquid
    withdrawal (reverse), and BNB/Solana origins for Hyperliquid/xReserve. The
