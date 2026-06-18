@@ -16,7 +16,10 @@ export type ChainKey =
   | "optimism"
   | "polygon"
   | "avalanche"
-  | "cardano";
+  | "cardano"
+  | "hyperliquid"
+  | "stacks"
+  | "canton";
 
 export const CHAIN_KEYS = [
   "base",
@@ -34,6 +37,9 @@ export const CHAIN_KEYS = [
   "polygon",
   "avalanche",
   "cardano",
+  "hyperliquid",
+  "stacks",
+  "canton",
 ] as const;
 
 export type ChainInfo = {
@@ -66,6 +72,11 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
   // Cardano serves double duty: a NEAR-Intents destination (Rail B) AND an
   // Apex-internal endpoint for prime<->cardano (Rail C).
   cardano: { key: "cardano", label: "Cardano", family: "utxo", oneClickId: "cardano", apexId: "cardano" },
+  // Redesign destinations (docs/ROUTING_SPEC.md). USDC reaches these via
+  // Hyperliquid's native bridge (Arbitrum-only) and Circle xReserve (USDCx).
+  hyperliquid: { key: "hyperliquid", label: "Hyperliquid", family: "other" },
+  stacks: { key: "stacks", label: "Stacks", family: "other" },
+  canton: { key: "canton", label: "Canton", family: "other" },
 };
 
 // ---------------------------------------------------------------------------
