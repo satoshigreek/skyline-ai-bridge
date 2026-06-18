@@ -44,7 +44,7 @@
         <button id="walletAda" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect ADA</button>
       </div>
       <div id="adaPick" class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"></div>
-      <div id="walletHint" class="sub" style="margin-top:4px"></div>
+      <div id="walletHint" class="sub" style="margin-top:4px;max-width:300px;white-space:normal;word-break:break-word;margin-left:auto"></div>
     </div>
   </div>
 
@@ -110,7 +110,7 @@
     var btn=document.getElementById("wallet"), hint=document.getElementById("walletHint");
     if(account){
       btn.textContent=short(account);
-      hint.textContent="connected · EVM fields auto-filled";
+      hint.style.color=""; hint.textContent="connected · EVM fields auto-filled";
       var s=document.getElementById("sender"); if(!s.value) s.value=account;   // xReserve Ethereum signer
       var ac=document.getElementById("account"); if(!ac.value) ac.value=account; // Hyperliquid account
       maybeFillRecipient();
@@ -138,7 +138,7 @@
         cardanoAddr=s.usedAddresses[0];
         ab.textContent="ADA "+cardanoAddr.slice(0,9)+"…";
         document.getElementById("adaPick").innerHTML="";
-        document.getElementById("walletHint").textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
+        var h=document.getElementById("walletHint"); h.style.color=""; h.textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
         maybeFillRecipient();
       } else if(!s.connected){ cardanoAddr=null; }
     });
@@ -152,7 +152,7 @@
     refresh(); setTimeout(refresh,900); // catch wallets that inject late
     ab.onclick=function(){
       var l=SW.getInstalledCardanoWallets();
-      var onErr=function(e){ document.getElementById("adaPick").innerHTML='<span class="sub" style="color:var(--ember)">'+(((e&&e.message)||"connect failed")+"").slice(0,80)+'</span>'; };
+      var onErr=function(){ var h=document.getElementById("walletHint"); h.style.color="var(--ember)"; h.textContent="Couldn't connect — make sure your Cardano wallet is installed and unlocked, then retry."; document.getElementById("adaPick").innerHTML=""; };
       if(l.length===0){ refresh(); return; }
       if(l.length===1){ SW.connectCardano(l[0],onErr); return; }
       document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2);font-size:12px">'+n+'</button>';}).join("");
