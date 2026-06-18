@@ -40,13 +40,13 @@
     </div>
     <div style="text-align:right">
       <div class="row" style="justify-content:flex-end;gap:6px">
-        <button id="wallet" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect wallet</button>
-        <button id="walletAda" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2)">Connect ADA</button>
+        <button id="wallet" style="background:#fff;border:1px solid var(--ember);color:var(--ember)">Connect EVM+ Wallet</button>
+        <button id="walletAda" style="background:#fff;border:1px solid var(--ember);color:var(--ember)">Connect Cardano Wallet</button>
       </div>
       <div id="adaPick" class="row" style="justify-content:flex-end;gap:6px;margin-top:6px"></div>
-      <div id="walletHint" class="sub" style="margin-top:4px;max-width:300px;white-space:normal;word-break:break-word;margin-left:auto"></div>
     </div>
   </div>
+  <div id="walletHint" class="sub" style="margin-top:8px;text-align:right"></div>
 
   <div class="panel">
     <div class="row">
@@ -114,7 +114,7 @@
       var s=document.getElementById("sender"); if(!s.value) s.value=account;   // xReserve Ethereum signer
       var ac=document.getElementById("account"); if(!ac.value) ac.value=account; // Hyperliquid account
       maybeFillRecipient();
-    } else { btn.textContent="Connect wallet"; hint.textContent=""; }
+    } else { btn.textContent="Connect EVM+ Wallet"; hint.textContent=""; }
   }
   if(window.ethereum){
     // If you connected on the classic page, this returns the account with no prompt.
@@ -124,7 +124,7 @@
       window.ethereum.request({method:"eth_requestAccounts"}).then(function(a){ if(a&&a[0]) setAccount(a[0]); }).catch(function(){});
     };
   } else {
-    var wb=document.getElementById("wallet"); wb.textContent="No browser wallet"; wb.disabled=true;
+    var wb=document.getElementById("wallet"); wb.textContent="No EVM wallet"; wb.disabled=true;
   }
 
   // ---- Cardano (CIP-30) via the Cardano Foundation's official connect library ----
@@ -132,7 +132,7 @@
   // It handles wallet detection, enable, bech32 conversion and persistence.
   (function(){
     var SW=window.SkylineWallet, ab=document.getElementById("walletAda");
-    if(!SW){ ab.textContent="ADA unavailable"; ab.disabled=true; return; }
+    if(!SW){ ab.textContent="Cardano unavailable"; ab.disabled=true; return; }
     SW.subscribeCardano(function(s){
       if(s.connected && s.usedAddresses && s.usedAddresses[0]){
         cardanoAddr=s.usedAddresses[0];
@@ -144,8 +144,8 @@
     });
     function refresh(){
       var inst=SW.getInstalledCardanoWallets();
-      if(inst.length===0){ if(!cardanoAddr){ab.textContent="No ADA wallet";ab.disabled=true;} return; }
-      ab.disabled=false; if(!cardanoAddr) ab.textContent="Connect ADA";
+      if(inst.length===0){ if(!cardanoAddr){ab.textContent="No Cardano wallet";ab.disabled=true;} return; }
+      ab.disabled=false; if(!cardanoAddr) ab.textContent="Connect Cardano Wallet";
       // Silent follow-through: reuse a wallet already authorized on the classic page.
       inst.forEach(function(name){ try{ var w=window.cardano&&window.cardano[name]; if(w&&w.isEnabled) w.isEnabled().then(function(on){ if(on&&!cardanoAddr) SW.connectCardano(name); }).catch(function(){}); }catch(_){ } });
     }
@@ -155,7 +155,7 @@
       var onErr=function(){ var h=document.getElementById("walletHint"); h.style.color="var(--ember)"; h.textContent="Couldn't connect — make sure your Cardano wallet is installed and unlocked, then retry."; document.getElementById("adaPick").innerHTML=""; };
       if(l.length===0){ refresh(); return; }
       if(l.length===1){ SW.connectCardano(l[0],onErr); return; }
-      document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2);font-size:12px">'+n+'</button>';}).join("");
+      document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:#fff;border:1px solid var(--ember);color:var(--ember);font-size:12px">'+n+'</button>';}).join("");
       [].forEach.call(document.getElementById("adaPick").querySelectorAll("button"),function(b){ b.onclick=function(){ SW.connectCardano(b.getAttribute("data-k"),onErr); }; });
     };
   })();
