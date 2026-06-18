@@ -16,7 +16,10 @@ export type ChainKey =
   | "optimism"
   | "polygon"
   | "avalanche"
-  | "cardano";
+  | "cardano"
+  | "hyperliquid"
+  | "stacks"
+  | "canton";
 
 export const CHAIN_KEYS = [
   "base",
@@ -34,6 +37,9 @@ export const CHAIN_KEYS = [
   "polygon",
   "avalanche",
   "cardano",
+  "hyperliquid",
+  "stacks",
+  "canton",
 ] as const;
 
 export type ChainInfo = {
@@ -66,6 +72,11 @@ export const CHAINS: Record<ChainKey, ChainInfo> = {
   // Cardano serves double duty: a NEAR-Intents destination (Rail B) AND an
   // Apex-internal endpoint for prime<->cardano (Rail C).
   cardano: { key: "cardano", label: "Cardano", family: "utxo", oneClickId: "cardano", apexId: "cardano" },
+  // Redesign destinations (docs/ROUTING_SPEC.md). USDC reaches these via
+  // Hyperliquid's native bridge (Arbitrum-only) and Circle xReserve (USDCx).
+  hyperliquid: { key: "hyperliquid", label: "Hyperliquid", family: "other" },
+  stacks: { key: "stacks", label: "Stacks", family: "other" },
+  canton: { key: "canton", label: "Canton", family: "other" },
 };
 
 // ---------------------------------------------------------------------------
@@ -156,39 +167,33 @@ export const SCOPE_ORIGINS: ChainKey[] = [
   "vector",
   "cardano",
 ];
-export const SCOPE_TOKENS = [
-  "AP3X",
-  "USDC",
-  "USDT",
-  "ADA",
-  "ETH",
-  "WETH",
-  "BTC",
-  "WBTC",
-] as const;
+// Asset scope is AP3X and USDC ONLY (see docs/ROUTING_SPEC.md §0). Their
+// per-chain representations (bAP3X/bnAP3X/cAP3X, USDCx/HyperCore/bridged-USDC)
+// are labels of these two families, not separate scope tokens. The asset-scope
+// test (tests/asset-scope.test.ts) fails CI if anything else is reintroduced.
+export const SCOPE_TOKENS = ["AP3X", "USDC"] as const;
 export type ScopeToken = (typeof SCOPE_TOKENS)[number];
 
-// The product's token×chain matrix. Per-chain representations: BTC on Base =
-// cbBTC, ADA on Base = cbADA, ADA on BNB = BEP-20 ADA, AP3X on Base = bAP3X.
-// Whether an entry is QUOTABLE today is decided live against the 1-Click token
-// list (/api/tokens availability) — entries solvers don't carry yet render as
-// "soon" in the UI instead of producing quotes that can't settle.
+// The product's token×chain matrix. Per-chain AP3X representations: Base =
+// bAP3X, BNB = bnAP3X, Cardano = cAP3X. Whether an entry is QUOTABLE today is
+// decided live against the 1-Click token list (/api/tokens availability) —
+// entries solvers don't carry yet render as "soon" in the UI instead of
+// producing quotes that can't settle.
 export const CHAIN_TOKENS: Record<string, ScopeToken[]> = {
-  base: ["AP3X", "USDC", "ETH", "WETH", "BTC", "WBTC", "ADA"],
-  bsc: ["AP3X", "USDC", "USDT", "ADA", "WETH", "WBTC"],
+  base: ["AP3X", "USDC"],
+  bsc: ["AP3X", "USDC"],
   ap3x: ["AP3X"],
-  // Apex Fusion internal chains (Rail C). AP3X is the ecosystem token; cardano
-  // also carries ADA (its native asset, used by Rail B and prime<->cardano).
+  // Apex Fusion internal chains (Rail C) — AP3X only.
   nexus: ["AP3X"],
   prime: ["AP3X"],
   vector: ["AP3X"],
-  cardano: ["ADA", "AP3X"],
+  cardano: ["AP3X"],
 };
 
 // How a scope token is labeled on a given chain (wrapped representations).
 export const TOKEN_DISPLAY: Partial<Record<ChainKey, Partial<Record<ScopeToken, string>>>> = {
-  base: { BTC: "cbBTC", ADA: "cbADA", AP3X: "bAP3X" },
-  bsc: { ADA: "ADA (BEP-20)", AP3X: "bnAP3X" },
+  base: { AP3X: "bAP3X" },
+  bsc: { AP3X: "bnAP3X" },
   nexus: { AP3X: "AP3X" },
   cardano: { AP3X: "cAP3X" }, // wrapped AP3X on Cardano (Rail C)
 };
@@ -216,12 +221,11 @@ export const EVM_CHAIN_IDS: Partial<Record<ChainKey, number>> = {
 export const SKYLINE_API =
   process.env.SKYLINE_API || "https://web-api.mainnet.skylinebridge.tech";
 
-// Ecosystem token ids, from /settings. AP3X is the native ecosystem token.
+// Ecosystem token ids, from /settings. AP3X is the native ecosystem token;
+// cAP3X is its wrapped Cardano representation. Scope is AP3X only on Rail C.
 export const APEX_TOKEN_IDS: Record<string, number> = {
   AP3X: 1,
-  ADA: 2,
   cAP3X: 3,
-  xADA: 4,
 };
 
 // Smallest-unit decimals by VM family: Cardano UTXO chains use 6 (lovelace),

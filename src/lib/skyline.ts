@@ -75,7 +75,6 @@ export async function getBridgingAddresses(chainId: string): Promise<string[]> {
 
 export function srcTokenId(origin: ChainKey, scopeSymbol: string): number | null {
   if (origin === "cardano") {
-    if (scopeSymbol === "ADA") return APEX_TOKEN_IDS.ADA; // 2
     if (scopeSymbol === "AP3X") return APEX_TOKEN_IDS.cAP3X; // 3 (wrapped AP3X on Cardano)
     return null;
   }

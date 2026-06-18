@@ -43,7 +43,7 @@ describe("deterministic router — three rails", () => {
     expect(C("prime", "vector")).toMatchObject({ ok: true, rail: "C" });
     expect(C("vector", "prime")).toMatchObject({ ok: true, rail: "C" });
     expect(C("prime", "cardano")).toMatchObject({ ok: true, rail: "C" });
-    expect(C("cardano", "prime", "ADA")).toMatchObject({ ok: true, rail: "C" });
+    expect(C("cardano", "prime", "AP3X")).toMatchObject({ ok: true, rail: "C" });
   });
 
   it("rejects internal pairs that aren't enabled (e.g. Vector<->Nexus)", () => {
@@ -52,18 +52,15 @@ describe("deterministic router — three rails", () => {
     if (!d.ok) expect(d.error).toMatch(/isn't enabled|internal/i);
   });
 
-  it("rejects non-AP3X/ADA tokens on internal routes", () => {
-    const d = routeIntent(intent({ fromChain: "nexus", toChain: "prime", tokenIn: "USDC" }));
-    expect(d.ok).toBe(false);
+  it("rejects non-AP3X tokens on internal routes (ADA and USDC are out of scope here)", () => {
+    expect(routeIntent(intent({ fromChain: "nexus", toChain: "prime", tokenIn: "USDC" })).ok).toBe(false);
+    expect(routeIntent(intent({ fromChain: "cardano", toChain: "prime", tokenIn: "ADA" })).ok).toBe(false);
   });
 
-  // ---- Rail B: NEAR Intents ----
-  it("routes in-scope cross-chain pairs to Rail B", () => {
+  // ---- Rail B: NEAR Intents (USDC only, in scope) ----
+  it("routes in-scope USDC cross-chain pairs to Rail B", () => {
     expect(routeIntent(intent({ toChain: "bsc" }))).toMatchObject({ ok: true, rail: "B" });
-    expect(routeIntent(intent({ toChain: "cardano", tokenOut: "ADA", action: "swap" }))).toMatchObject({ ok: true, rail: "B" });
-    expect(
-      routeIntent(intent({ fromChain: "bsc", tokenIn: "USDT", toChain: "base", tokenOut: "USDC", action: "swap" })),
-    ).toMatchObject({ ok: true, rail: "B" });
+    expect(routeIntent(intent({ toChain: "cardano" }))).toMatchObject({ ok: true, rail: "B" });
   });
 
   it("Rail C takes precedence over Rail B for prime<->cardano", () => {
