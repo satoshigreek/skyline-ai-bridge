@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Skyline AI Cross-Chain Engine</title>
+<style>
+  :root{--paper:#07100C;--paper-2:#0E1B16;--paper-3:#15281F;--ink:#EAF3EC;--ink-2:#B8CDBF;--ink-3:#7A9285;--rule:#1F3A30;--emerald:#4BB87A;--ember:#D9583E;--ignition:#F2A03C}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:ui-sans-serif,system-ui,"Segoe UI",sans-serif;line-height:1.5}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 18px 60px}
+  .brand{font-size:24px;font-weight:700}
+  .brand span{color:var(--ember)}
+  .sub{color:var(--ink-3);font-size:13px;margin-top:2px}
+  .panel{background:var(--paper-2);border:1px solid var(--rule);border-radius:14px;padding:16px 18px;margin-top:16px}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  select,input{background:var(--paper-3);color:var(--ink);border:1px solid var(--rule);border-radius:9px;padding:10px 12px;font-size:14px;min-width:120px;flex:1}
+  button{background:var(--ember);color:#fff;border:0;border-radius:9px;padding:11px 18px;font-weight:600;cursor:pointer;font-size:14px}
+  button:disabled{opacity:.5;cursor:default}
+  h2{font-size:15px;margin:0 0 10px;color:var(--emerald)}
+  table{width:100%;border-collapse:collapse}
+  td{padding:6px 4px;border-bottom:1px solid var(--rule);font-size:14px}
+  td:first-child{color:var(--ink-3);width:40%}
+  .mono{font-family:ui-monospace,monospace;font-size:12px;word-break:break-all}
+  .muted{color:var(--ink-3)}
+  .note{color:var(--ink-2);font-size:13px;margin:6px 0 0}
+  .err{color:var(--ember);font-size:14px;margin-top:8px}
+  ol{margin:6px 0;padding-left:20px;line-height:1.9}
+  .tag{font-size:11px;border:1px solid var(--rule);border-radius:4px;padding:1px 6px;margin-left:6px;color:var(--ignition)}
+  .tag.ok{color:var(--emerald)}
+  a{color:var(--emerald)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">Skyline <span>AI Cross-Chain Engine</span></div>
+  <div class="sub">CCTP · Hyperliquid · xReserve · Stargate · LayerZero OFT · Reactor — runs in your browser, no backend. <a href="index.html">← classic bridge</a></div>
+
+  <div class="panel">
+    <div class="row">
+      <select id="asset"><option>USDC</option><option>AP3X</option></select>
+      <select id="from"></select>
+      <select id="to"></select>
+      <input id="amount" value="100" style="max-width:110px"/>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="recipient" placeholder="recipient address (destination chain)"/>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="account" placeholder="Hyperliquid account (optional)"/>
+      <input id="sender" placeholder="Ethereum sender — xReserve (optional)"/>
+      <button id="go">Plan route</button>
+    </div>
+    <div id="err" class="err"></div>
+  </div>
+
+  <div id="out"></div>
+
+  <p class="note muted" style="margin-top:18px">
+    Review only — the engine never signs. Routing, the review card, and AP3X run fully client-side here.
+    The USDC rails show a safe “not configured” notice until their verified contract addresses are set
+    (that is the deliberate <code>⟨VERIFY⟩</code> gate, not a bug).
+  </p>
+</div>
+
+<script src="engine-bundle.js"></script>
+<script>
+  var E = window.SkylineEngine;
+  var USDC = ["ethereum","base","arbitrum","solana","bsc","hyperliquid","cardano","stacks","canton"];
+  var AP3X = ["base","bsc","nexus","prime","vector","cardano"];
+  var assetEl=document.getElementById("asset"), fromEl=document.getElementById("from"),
+      toEl=document.getElementById("to"), out=document.getElementById("out"), err=document.getElementById("err");
+
+  function fill(){
+    var list = assetEl.value==="AP3X"?AP3X:USDC;
+    [fromEl,toEl].forEach(function(sel,idx){
+      sel.innerHTML = list.map(function(c){return '<option'+((idx===0&&c==="base")||(idx===1&&c===(assetEl.value==="AP3X"?"nexus":"arbitrum"))?' selected':'')+'>'+c+'</option>';}).join("");
+    });
+  }
+  assetEl.onchange=function(){fill();out.innerHTML="";};
+  fill();
+
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];});}
+
+  document.getElementById("go").onclick=function(){
+    err.textContent=""; out.innerHTML="";
+    var recipient=document.getElementById("recipient").value.trim();
+    if(!recipient){err.textContent="Enter a recipient address.";return;}
+    var req={asset:assetEl.value,fromChain:fromEl.value,toChain:toEl.value,amount:document.getElementById("amount").value.trim(),recipient:recipient,
+      account:document.getElementById("account").value.trim()||undefined, ethereumSender:document.getElementById("sender").value.trim()||undefined};
+    var r=E.buildPlan(req);
+    if(!r.ok){err.textContent="⛔ "+r.error;return;}
+    var c=r.card;
+    var rows='<tr><td>Send</td><td>'+esc(c.amountIn)+' '+esc(c.tokenIn)+'</td></tr>'+
+      '<tr><td>Receive (min)</td><td>'+esc(c.minOut)+' '+esc(c.tokenOut)+'</td></tr>'+
+      '<tr><td>Settled asset</td><td>'+esc(c.settledAsset)+' <span class="muted">('+esc(c.trustModel)+')</span></td></tr>'+
+      '<tr><td>Recipient</td><td class="mono">'+esc(c.recipient)+'</td></tr>'+
+      c.fees.map(function(f){return '<tr><td>'+esc(f.label)+'</td><td>'+esc(f.value)+'</td></tr>';}).join("")+
+      (c.etaSeconds!=null?'<tr><td>ETA</td><td>~'+Math.round(c.etaSeconds/60)+' min</td></tr>':'');
+    var notes=c.notes.map(function(n){return '<p class="note">• '+esc(n)+'</p>';}).join("");
+    var w=E.toWalletSteps(r), stepsHtml;
+    if(w.kind==="delegated"){stepsHtml='<p class="note">AP3X executes via the existing OFT / Reactor executors.</p>';}
+    else{stepsHtml='<ol>'+w.steps.map(function(s){
+      var tag=s.kind==="contract-write"?'<span class="tag">ABI ⟨VERIFY⟩</span>':'<span class="tag ok">encoded ✓</span>';
+      return '<li><b>'+esc(s.label)+'</b> <span class="muted">· chain '+s.chainId+'</span> '+tag+'</li>';}).join("")+'</ol>';}
+    out.innerHTML='<div class="panel"><h2>Review · rail '+esc(c.rail)+'</h2>'+
+      '<div style="font-weight:600;margin-bottom:8px">'+esc(c.fromChain)+' → '+esc(c.toChain)+'</div>'+
+      '<table>'+rows+'</table>'+notes+'</div>'+
+      '<div class="panel"><h2>Wallet steps</h2>'+stepsHtml+'</div>';
+  };
+</script>
+</body>
+</html>
