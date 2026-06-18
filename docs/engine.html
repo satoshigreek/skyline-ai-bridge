@@ -50,11 +50,11 @@
 
   <div class="panel">
     <h2>Buy AP3X</h2>
-    <div class="sub" style="margin-bottom:10px">USDC on Base → bAP3X (“Based Apex”) on Base · via Uniswap</div>
+    <div class="sub" style="margin-bottom:10px">USDC on Base → bAP3X (“Based Apex”) on Base · best of Aerodrome &amp; Uniswap, signed in your wallet</div>
     <div class="row" style="gap:8px">
       <input id="buyAmt" value="100" style="max-width:150px" placeholder="USDC amount"/>
       <span id="buyOut" class="muted" style="flex:1">≈ — bAP3X</span>
-      <a id="buyBtn" target="_blank" rel="noopener" href="https://app.uniswap.org/swap?chain=base&inputCurrency=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&outputCurrency=0x9208d82f121806a34a39bb90733b4c5c54f3993e&exactAmount=100&exactField=input" style="background:var(--ember);color:#fff;border-radius:9px;padding:11px 18px;font-weight:600;font-size:14px;text-decoration:none;display:inline-block;white-space:nowrap">Buy on Uniswap</a>
+      <button id="buyBtn">Buy AP3X</button>
     </div>
     <div id="buyHint" class="sub" style="margin-top:6px"></div>
   </div>
@@ -107,25 +107,53 @@
   fill();
 
   // ---- wallet: shares the classic page's injected connection (same origin) ----
-  // ---- Buy AP3X (USDC -> bAP3X on Base, via Uniswap) ----
-  // The Buy link is built inline (no bundle dependency), so the anchor always
-  // opens Uniswap even if engine-bundle.js is cached/stale. The quote is a
-  // best-effort enhancement on top.
+  // ---- Buy AP3X in-page (USDC -> bAP3X on Base, best of Aerodrome + Uniswap) ----
   var buyAmt=document.getElementById("buyAmt"), buyOut=document.getElementById("buyOut"), buyHint=document.getElementById("buyHint"), buyBtn=document.getElementById("buyBtn"), buyT;
-  var BUY_USDC="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", BUY_BAP3X="0x9208d82f121806a34a39bb90733b4c5c54f3993e";
-  function buyLink(v){ return "https://app.uniswap.org/swap?chain=base&inputCurrency="+BUY_USDC+"&outputCurrency="+BUY_BAP3X+((/^\d+(\.\d+)?$/.test(v)&&Number(v)>0)?"&exactAmount="+v+"&exactField=input":""); }
   async function refreshBuy(){
-    var v=buyAmt.value.trim(); buyHint.textContent=""; buyBtn.href=buyLink(v);
+    var v=buyAmt.value.trim(); buyHint.style.color=""; buyHint.textContent="";
     if(!/^\d+(\.\d+)?$/.test(v)||Number(v)<=0){ buyOut.textContent="≈ — bAP3X"; return; }
     buyOut.textContent="≈ … bAP3X";
     try{
-      var q=E.quoteBuyAp3xOnBase?await E.quoteBuyAp3xOnBase(v):null;
-      if(q){ buyOut.textContent="≈ "+Number(q.amountOut).toLocaleString(undefined,{maximumFractionDigits:4})+" bAP3X"; buyHint.textContent="Live Uniswap quote · "+(q.fee/10000)+"% pool"; }
-      else { buyOut.textContent="≈ see Uniswap"; buyHint.textContent="Live quote shows on the Uniswap page."; }
-    }catch(_){ buyOut.textContent="≈ see Uniswap"; }
+      var q=await E.quoteBuyBest(v);
+      if(q){ buyOut.textContent="≈ "+Number(q.amountOut).toLocaleString(undefined,{maximumFractionDigits:4})+" bAP3X"; buyHint.textContent="Best price: "+q.venue+(q.kind==="univ3"?" ("+(q.fee/10000)+"% pool)":(q.stable?" (stable pool)":" (volatile pool)")); }
+      else { buyOut.textContent="≈ no route"; buyHint.textContent="No USDC→bAP3X pool found on Aerodrome or Uniswap for that size."; }
+    }catch(_){ buyOut.textContent="≈ —"; buyHint.textContent="Couldn't reach the Base RPC for a quote."; }
   }
-  buyAmt.oninput=function(){ buyBtn.href=buyLink(buyAmt.value.trim()); clearTimeout(buyT); buyT=setTimeout(refreshBuy,500); };
+  buyAmt.oninput=function(){ clearTimeout(buyT); buyT=setTimeout(refreshBuy,500); };
   refreshBuy();
+  async function ensureBase(){
+    var cid=await window.ethereum.request({method:"eth_chainId"});
+    if(cid==="0x2105") return;
+    try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x2105"}]}); }
+    catch(e){ if(e&&e.code===4902){ await window.ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:"0x2105",chainName:"Base",nativeCurrency:{name:"Ether",symbol:"ETH",decimals:18},rpcUrls:["https://mainnet.base.org"],blockExplorerUrls:["https://basescan.org"]}]}); } else throw e; }
+  }
+  async function waitReceipt(h){ for(var i=0;i<40;i++){ try{ var r=await window.ethereum.request({method:"eth_getTransactionReceipt",params:[h]}); if(r) return r; }catch(_){}; await new Promise(function(x){setTimeout(x,3000);}); } return null; }
+  buyBtn.onclick=async function(){
+    var v=buyAmt.value.trim();
+    if(!window.ethereum||!account){ buyHint.style.color="var(--ember)"; buyHint.textContent="Connect your EVM+ wallet first."; return; }
+    if(!/^\d+(\.\d+)?$/.test(v)||Number(v)<=0){ buyHint.style.color="var(--ember)"; buyHint.textContent="Enter a USDC amount."; return; }
+    buyBtn.disabled=true; buyHint.style.color="";
+    try{
+      buyHint.textContent="Switching wallet to Base…"; await ensureBase();
+      buyHint.textContent="Finding the best price…"; var q=await E.quoteBuyBest(v);
+      if(!q){ buyHint.style.color="var(--ember)"; buyHint.textContent="No route found on Aerodrome or Uniswap."; buyBtn.disabled=false; return; }
+      var need=BigInt(E.usdcToSmallest(v)), have=BigInt(await E.usdcAllowance(account,q.router));
+      if(have<need){
+        buyHint.textContent="Approve USDC in your wallet…";
+        var ap=E.buildApproveTx(q.router,v);
+        var ah=await window.ethereum.request({method:"eth_sendTransaction",params:[{from:account,to:ap.to,data:ap.data}]});
+        buyHint.textContent="Approving USDC… ("+ah.slice(0,10)+")"; await waitReceipt(ah);
+      }
+      buyHint.textContent="Confirm the swap in your wallet…";
+      var sw=E.buildSwapTx(q,account,v,100);
+      var sh=await window.ethereum.request({method:"eth_sendTransaction",params:[{from:account,to:sw.to,data:sw.data}]});
+      buyHint.textContent="Swap submitted ("+sh.slice(0,12)+"…) — waiting…";
+      var rc=await waitReceipt(sh);
+      if(rc){ var ok=rc.status==="0x1"; buyHint.style.color=ok?"var(--emerald)":"var(--ember)"; buyHint.textContent=ok?("Bought ≈ "+Number(q.amountOut).toLocaleString(undefined,{maximumFractionDigits:4})+" bAP3X via "+q.venue+" ✓"):"Swap failed — your USDC stayed in your wallet."; }
+      else buyHint.textContent="Submitted — check your wallet for confirmation.";
+    }catch(e){ buyHint.style.color="var(--ember)"; buyHint.textContent=(((e&&(e.message||(e.data&&e.data.message)))||"Buy cancelled or failed")+"").slice(0,140); }
+    finally{ buyBtn.disabled=false; }
+  };
 
   var account=null, cardanoAddr=null;
   var EVM_DEST=["ethereum","base","arbitrum","bsc","nexus","hyperliquid"];
