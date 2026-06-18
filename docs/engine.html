@@ -152,7 +152,7 @@
     refresh(); setTimeout(refresh,900); // catch wallets that inject late
     ab.onclick=function(){
       var l=SW.getInstalledCardanoWallets();
-      var onErr=function(){ var h=document.getElementById("walletHint"); h.style.color="var(--ember)"; h.textContent="Couldn't connect — make sure your Cardano wallet is installed and unlocked, then retry."; document.getElementById("adaPick").innerHTML=""; };
+      var onErr=function(){ var h=document.getElementById("walletHint"); h.style.color="var(--ember)"; h.textContent="Couldn't Connect"; document.getElementById("adaPick").innerHTML=""; };
       if(l.length===0){ refresh(); return; }
       if(l.length===1){ SW.connectCardano(l[0],onErr); return; }
       document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:#fff;border:1px solid var(--ember);color:var(--ember);font-size:12px">'+n+'</button>';}).join("");
