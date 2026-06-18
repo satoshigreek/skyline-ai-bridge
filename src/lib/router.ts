@@ -49,10 +49,10 @@ export function routeIntent(intent: Intent): RouteDecision {
   // Checked FIRST so the internal pairs never fall through to A/B. The token
   // pair is validated against live /settings in the quote step.
   if (isApexRoute(from, to)) {
-    if (normalizeAp3x(tokenIn) !== "AP3X" && tokenIn !== "ADA") {
+    if (normalizeAp3x(tokenIn) !== "AP3X") {
       return {
         ok: false,
-        error: `Apex Fusion internal transfers move AP3X (or ADA on the Cardano leg) — not ${tokenIn}.`,
+        error: `Apex Fusion internal transfers move AP3X only — not ${tokenIn}.`,
       };
     }
     return { ok: true, rail: "C", railLabel: "Skyline (Apex Fusion)" };

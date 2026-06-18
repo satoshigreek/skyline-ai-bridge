@@ -21,7 +21,7 @@ type Stage =
   | { k: "doneB"; state: string; card: CardModel }
   | { k: "doneC"; ok: boolean; card: CardModel };
 
-const EXAMPLE = "e.g. bridge 25 AP3X to Apex Fusion · swap 50 USDC for ADA";
+const EXAMPLE = "e.g. bridge 25 AP3X to Apex Fusion · send 50 USDC to Base";
 
 export default function Home() {
   const { address } = useAccount();
