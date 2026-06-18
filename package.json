@@ -10,10 +10,13 @@
     "lint": "next lint",
     "test": "vitest run",
     "eval:parser": "tsx scripts/eval-parser.ts",
-    "build:engine-bundle": "esbuild src/lib/engine-browser.ts --bundle --format=iife --global-name=SkylineEngine --banner:js=\"var process=(typeof process!=='undefined')?process:{env:{}};\" --minify --outfile=docs/engine-bundle.js"
+    "build:engine-bundle": "esbuild src/lib/engine-browser.ts --bundle --format=iife --global-name=SkylineEngine --banner:js=\"var process=(typeof process!=='undefined')?process:{env:{}};\" --minify --outfile=docs/engine-bundle.js",
+    "build:wallet-bundle": "esbuild src/lib/wallet-browser.ts --bundle --format=iife --global-name=SkylineWallet --banner:js=\"var global=globalThis;\" --minify --outfile=docs/wallet-bundle.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@cardano-foundation/cardano-connect-with-wallet": "^0.2.22",
+    "@cardano-foundation/cardano-connect-with-wallet-core": "^0.2.12",
     "@emurgo/cardano-serialization-lib-asmjs": "^14.1.2",
     "@rainbow-me/rainbowkit": "^2.2.4",
     "@tanstack/react-query": "^5.66.0",

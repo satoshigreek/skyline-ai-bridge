@@ -76,6 +76,7 @@
 </div>
 
 <script src="engine-bundle.js"></script>
+<script src="wallet-bundle.js"></script>
 <script>
   var E = window.SkylineEngine;
   var USDC = ["ethereum","base","arbitrum","solana","bsc","hyperliquid","cardano","stacks","canton"];
@@ -94,7 +95,7 @@
   fill();
 
   // ---- wallet: shares the classic page's injected connection (same origin) ----
-  var account=null, cardanoAddr=null, _CSL=null;
+  var account=null, cardanoAddr=null;
   var EVM_DEST=["ethereum","base","arbitrum","bsc","nexus","hyperliquid"];
   var CARDANO_DEST=["cardano","prime","vector"]; // Cardano-addressed destinations
   function short(a){return a.slice(0,6)+"…"+a.slice(-4);}
@@ -126,31 +127,36 @@
     var wb=document.getElementById("wallet"); wb.textContent="No browser wallet"; wb.disabled=true;
   }
 
-  // ---- Cardano (CIP-30) — same approach as the classic page (enable → CSL bech32) ----
-  function getCSL(){ return _CSL || (_CSL=import("https://esm.sh/@emurgo/cardano-serialization-lib-asmjs@14.1.2")); }
-  function listAda(){ var c=window.cardano; if(!c) return []; var o=[]; for(var k in c){ var w=c[k]; if(w&&typeof w.enable==="function") o.push({key:k,name:(w.name||k)}); } return o; }
-  async function connectAda(key){
-    try{
-      var api=await window.cardano[key].enable();
-      var CSL=await getCSL();
-      var hex=await api.getChangeAddress();
-      cardanoAddr=CSL.Address.from_hex(hex).to_bech32();
-      document.getElementById("walletAda").textContent="ADA "+cardanoAddr.slice(0,9)+"…";
-      document.getElementById("adaPick").innerHTML="";
-      document.getElementById("walletHint").textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
-      maybeFillRecipient();
-    }catch(e){ document.getElementById("adaPick").innerHTML='<span class="sub" style="color:var(--ember)">'+(((e&&e.message)||"connect failed")+"").slice(0,80)+'</span>'; }
-  }
+  // ---- Cardano (CIP-30) via the Cardano Foundation's official connect library ----
+  // (@cardano-foundation/cardano-connect-with-wallet-core, bundled as SkylineWallet).
+  // It handles wallet detection, enable, bech32 conversion and persistence.
   (function(){
-    var ab=document.getElementById("walletAda");
-    if(listAda().length===0){ ab.textContent="No ADA wallet"; ab.disabled=true; return; }
-    // Silent follow-through: reuse a wallet already enabled on the classic page.
-    listAda().forEach(function(w){ try{ window.cardano[w.key].isEnabled().then(function(on){ if(on&&!cardanoAddr) connectAda(w.key); }).catch(function(){}); }catch(_){ } });
+    var SW=window.SkylineWallet, ab=document.getElementById("walletAda");
+    if(!SW){ ab.textContent="ADA unavailable"; ab.disabled=true; return; }
+    SW.subscribeCardano(function(s){
+      if(s.connected && s.usedAddresses && s.usedAddresses[0]){
+        cardanoAddr=s.usedAddresses[0];
+        ab.textContent="ADA "+cardanoAddr.slice(0,9)+"…";
+        document.getElementById("adaPick").innerHTML="";
+        document.getElementById("walletHint").textContent=(account?"EVM + ":"")+"ADA connected · fields auto-filled";
+        maybeFillRecipient();
+      } else if(!s.connected){ cardanoAddr=null; }
+    });
+    function refresh(){
+      var inst=SW.getInstalledCardanoWallets();
+      if(inst.length===0){ if(!cardanoAddr){ab.textContent="No ADA wallet";ab.disabled=true;} return; }
+      ab.disabled=false; if(!cardanoAddr) ab.textContent="Connect ADA";
+      // Silent follow-through: reuse a wallet already authorized on the classic page.
+      inst.forEach(function(name){ try{ var w=window.cardano&&window.cardano[name]; if(w&&w.isEnabled) w.isEnabled().then(function(on){ if(on&&!cardanoAddr) SW.connectCardano(name); }).catch(function(){}); }catch(_){ } });
+    }
+    refresh(); setTimeout(refresh,900); // catch wallets that inject late
     ab.onclick=function(){
-      var l=listAda();
-      if(l.length===1){ connectAda(l[0].key); return; }
-      document.getElementById("adaPick").innerHTML=l.map(function(w){return '<button data-k="'+w.key+'" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2);font-size:12px">'+w.name+'</button>';}).join("");
-      [].forEach.call(document.getElementById("adaPick").querySelectorAll("button"),function(b){ b.onclick=function(){ connectAda(b.getAttribute("data-k")); }; });
+      var l=SW.getInstalledCardanoWallets();
+      var onErr=function(e){ document.getElementById("adaPick").innerHTML='<span class="sub" style="color:var(--ember)">'+(((e&&e.message)||"connect failed")+"").slice(0,80)+'</span>'; };
+      if(l.length===0){ refresh(); return; }
+      if(l.length===1){ SW.connectCardano(l[0],onErr); return; }
+      document.getElementById("adaPick").innerHTML=l.map(function(n){return '<button data-k="'+n+'" style="background:transparent;border:1px solid var(--rule);color:var(--ink-2);font-size:12px">'+n+'</button>';}).join("");
+      [].forEach.call(document.getElementById("adaPick").querySelectorAll("button"),function(b){ b.onclick=function(){ SW.connectCardano(b.getAttribute("data-k"),onErr); }; });
     };
   })();
 
