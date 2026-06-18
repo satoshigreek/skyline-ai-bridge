@@ -49,6 +49,18 @@
   <div id="walletHint" class="sub" style="margin-top:8px;text-align:right"></div>
 
   <div class="panel">
+    <h2>Buy AP3X</h2>
+    <div class="sub" style="margin-bottom:10px">USDC on Base → bAP3X (“Based Apex”) on Base · via Uniswap</div>
+    <div class="row" style="gap:8px">
+      <input id="buyAmt" value="100" style="max-width:150px" placeholder="USDC amount"/>
+      <span id="buyOut" class="muted" style="flex:1">≈ — bAP3X</span>
+      <button id="buyBtn">Buy on Uniswap</button>
+    </div>
+    <div id="buyHint" class="sub" style="margin-top:6px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Bridge AP3X and USDC Cross-Chain</h2>
     <div class="row">
       <select id="asset"><option>USDC</option><option>AP3X</option></select>
       <select id="from"></select>
@@ -95,6 +107,22 @@
   fill();
 
   // ---- wallet: shares the classic page's injected connection (same origin) ----
+  // ---- Buy AP3X (USDC -> bAP3X on Base, via Uniswap) ----
+  var buyAmt=document.getElementById("buyAmt"), buyOut=document.getElementById("buyOut"), buyHint=document.getElementById("buyHint"), buyT;
+  async function refreshBuy(){
+    var v=buyAmt.value.trim(); buyHint.textContent="";
+    if(!/^\d+(\.\d+)?$/.test(v)||Number(v)<=0){ buyOut.textContent="≈ — bAP3X"; return; }
+    buyOut.textContent="≈ … bAP3X";
+    try{
+      var q=await E.quoteBuyAp3xOnBase(v);
+      if(q){ buyOut.textContent="≈ "+Number(q.amountOut).toLocaleString(undefined,{maximumFractionDigits:4})+" bAP3X"; buyHint.textContent="Live Uniswap quote · "+(q.fee/10000)+"% pool"; }
+      else { buyOut.textContent="≈ see Uniswap"; buyHint.textContent="Live quote unavailable here — Uniswap shows it on the swap page."; }
+    }catch(_){ buyOut.textContent="≈ see Uniswap"; }
+  }
+  buyAmt.oninput=function(){ clearTimeout(buyT); buyT=setTimeout(refreshBuy,500); };
+  document.getElementById("buyBtn").onclick=function(){ window.open(E.uniswapBuyLink(buyAmt.value.trim()),"_blank","noopener"); };
+  refreshBuy();
+
   var account=null, cardanoAddr=null;
   var EVM_DEST=["ethereum","base","arbitrum","bsc","nexus","hyperliquid"];
   var CARDANO_DEST=["cardano","prime","vector"]; // Cardano-addressed destinations
